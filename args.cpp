@@ -101,6 +101,7 @@ void args::parse(int argc, char **argv) {
       "default values are designed to give sensible results.\n"
       "\n"
       "-h Help: print documentation. You already know this one.\n"
+      "-V Show version.\n"
       "-c Cluster score threshold (default = " +
       mcf::tostring(score_thresh) +
       ").\n"
@@ -181,6 +182,7 @@ void args::parse(int argc, char **argv) {
       "\n"
       "Options:\n"
       "-h Help: print documentation\n"
+      "-V Show version\n"
       "-c Cluster score threshold (" +
       mcf::tostring(score_thresh) + ")\n"
                                     "-m Motif score threshold (" +
@@ -207,10 +209,13 @@ void args::parse(int argc, char **argv) {
 
   int c;
 
-  while ((c = getopt(argc, argv, "hc:m:g:f:r:lp:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVc:m:g:f:r:lp:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
+      exit(0);
+    case 'V':
+      cout << "CLUSTER-BUSTER:  " GIT_COMMIT_INFO << endl;
       exit(0);
     case 'c':
       score_thresh = atof(optarg);

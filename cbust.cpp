@@ -546,7 +546,6 @@ inline std::ifstream &open_or_die(const std::string &filename,
 int main(int argc, char **argv) {
   using namespace std;
 
-  cout << "CLUSTER-BUSTER\nCompiled on " __DATE__ "\n" << endl;
   args::parse(argc, argv);
   cb::get_matrices();
   cb::misc_init();
