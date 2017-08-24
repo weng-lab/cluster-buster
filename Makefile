@@ -1,13 +1,20 @@
-GIT_COMMIT_INFO = $(shell git log -1 --format='%ci  commit: %h')
+GIT_COMMIT_INFO			= $(shell git log -1 --format='%ci  commit: %h')
 
-CXX		= g++
-CXXFLAGS	= -Wall -O3 -march=native -D NDEBUG -D GIT_COMMIT_INFO="\"$(GIT_COMMIT_INFO)\""
+CXX				= g++
+ICPC				= icpc
+
+CXXFLAGS			= -Wall -O3 -march=native -D NDEBUG
+CXXFLAGS_INTEL			= -Wall -O3 -march=native -D NDEBUG -static
+CXXFLAGS_GIT_COMMIT_INFO	= -D GIT_COMMIT_INFO="\"$(GIT_COMMIT_INFO)\""
 
 
-all :	cbust
+all:	cbust
 
-cbust :	*.cpp *.hpp
-	$(CXX) $(CXXFLAGS) -o cbust *.cpp
+cbust:	*.cpp *.hpp
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_GIT_COMMIT_INFO) -o cbust *.cpp
 
-clean :
-	rm -f cbust
+cbust_intel:	*.cpp *.hpp
+	$(ICPC) $(CXXFLAGS_INTEL) $(CXXFLAGS_GIT_COMMIT_INFO) -o cbust_intel *.cpp
+
+clean:
+	rm -f cbust cbust_intel
