@@ -11,7 +11,7 @@ extern double score_thresh; // Print clusters with scores >= this
 extern double motif_thresh; // Print motifs inside clusters with scores >= this
 extern double e_gap;        // Expected distance between pairs of cis-elements
 extern bool gap_specified;  // Did the user specify a value for e_gap?
-enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE };
+enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE, BY_SEQUENCE_CONCISE_ONE_LINE };
 extern format out_format;
 extern uint bg_range;   // Go up to this far either side of current base
                         // when counting local base abundances

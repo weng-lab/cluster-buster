@@ -128,6 +128,7 @@ void get_matrices();
 void print_hits(ostream &strm, const vector<motif> &hits);
 void output_by_seq(ostream &strm, const seq_info &seq);
 void output_by_seq_concise(ostream &strm, const seq_info &seq);
+void output_by_seq_concise_one_line(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
 }
@@ -493,6 +494,30 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
   strm << endl;
 }
 
+void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
+  static bool printed_header = false;
+
+  if (!printed_header) {
+    strm << "# Sequence\tScore\tStart\tEnd";
+    for (vector<string>::const_iterator m = mat_names.begin();
+         m != mat_names.end(); ++m)
+      strm << "\t" << *m;
+    strm << endl;
+
+    printed_header = true;
+  }
+
+  for (vector<result>::const_iterator r = results.begin(); r != results.end();
+       ++r) {
+    strm << seq.name << "\t" << r->score << "\t" << r->start + 1 << "\t"
+         << r->end + 1;
+    for (vector<double>::const_iterator m = r->motif_scores.begin();
+         m != r->motif_scores.end(); ++m)
+      strm << "\t" << *m;
+    strm << endl;
+  }
+}
+
 void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
@@ -557,6 +582,9 @@ int main(int argc, char **argv) {
   istream &in =
       args::seqfile.empty() ? (istream &)cin : open_or_die(args::seqfile, file);
   string seq_name;
+  bool by_sequence = args::out_format == args::BY_SEQUENCE ||
+                     args::out_format == args::BY_SEQUENCE_CONCISE ||
+                     args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE;
   cout.setf(ios::left, ios::adjustfield);
   cout.precision(3); // 3 sig figs
 
@@ -577,14 +605,18 @@ int main(int argc, char **argv) {
     }
 
     cb::scan_seq(seq_num);
-    if ((args::out_format == args::BY_SEQUENCE ||
-         args::out_format == args::BY_SEQUENCE_CONCISE) &&
-        !cb::results.empty()) {
+
+    if (by_sequence && !cb::results.empty()) {
       sort(cb::results.begin(), cb::results.end(), byscore<cb::result>());
-      if (args::out_format == args::BY_SEQUENCE)
+
+      if (args::out_format == args::BY_SEQUENCE) {
         cb::output_by_seq(cout, seqs.back());
-      else
+      } else if (args::out_format == args::BY_SEQUENCE_CONCISE) {
         cb::output_by_seq_concise(cout, seqs.back());
+      } else if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
+        cb::output_by_seq_concise_one_line(cout, seqs.back());
+      }
+
       cb::results.clear();
     }
     cb::seq.clear();
@@ -602,6 +634,10 @@ int main(int argc, char **argv) {
       cb::output_by_score(cout, seqs);
     else
       cb::output_by_score_concise(cout, seqs);
+  }
+
+  if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
+    cout << endl;
   }
 
   cout.precision(6); // reset to default precision

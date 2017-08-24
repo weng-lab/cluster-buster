@@ -169,6 +169,7 @@ void args::parse(int argc, char **argv) {
       "      from.\n"
       "   3: Concise version of 2, omitting details of individual motif "
       "matches.\n"
+      "   4: Same than 1, but all info on one line.\n"
       "\n"
       "Example usage: cbust -g20 -l mymotifs myseqs.fa\n"
       "\n"
@@ -206,6 +207,7 @@ void args::parse(int argc, char **argv) {
       "   1: per sequence, concise format\n"
       "   2: sorted by cluster score\n"
       "   3: sorted by cluster score, concise format\n"
+      "   4: per sequence, consise format on one line\n"
       //"-e  transition probability to HMM end state (tau) (" +
       //mcf::tostring(tau) + ")\n"
       ;
@@ -251,8 +253,11 @@ void args::parse(int argc, char **argv) {
       case 3:
         out_format = BY_SCORE_CONCISE;
         break;
+      case 4:
+        out_format = BY_SEQUENCE_CONCISE_ONE_LINE;
+        break;
       default:
-        mcf::die("Format should be 0, 1, 2, or 3");
+        mcf::die("Format should be 0, 1, 2, 3 or 4");
       }
       break;
     case 'r':
