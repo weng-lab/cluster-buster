@@ -18,6 +18,7 @@ extern uint bg_range;   // Go up to this far either side of current base
 extern bool mask_lower; // mask lowercase letters?
 extern double pseudo;   // Pseudocount to add to all matrix entries
 extern double tau;      // Transition probability to "end" state of HMM
+extern bool verbose;    // Be verbose or not
 
 void parse(int argc, char **argv);
 void print(ostream &strm, uint seq_num, uint mat_num);

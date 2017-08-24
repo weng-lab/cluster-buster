@@ -15,6 +15,7 @@ uint bg_range = 100;
 bool mask_lower = false;
 double pseudo = 0.375;
 double tau = 0;
+bool verbose = false;
 }
 
 void args::parse(int argc, char **argv) {
@@ -102,6 +103,7 @@ void args::parse(int argc, char **argv) {
       "\n"
       "-h Help: print documentation. You already know this one.\n"
       "-V Show version.\n"
+      "-v Verbose: print sequence names which are being scanned.\n"
       "-c Cluster score threshold (default = " +
       mcf::tostring(score_thresh) +
       ").\n"
@@ -183,6 +185,7 @@ void args::parse(int argc, char **argv) {
       "Options:\n"
       "-h Help: print documentation\n"
       "-V Show version\n"
+      "-v Verbose\n"
       "-c Cluster score threshold (" +
       mcf::tostring(score_thresh) + ")\n"
                                     "-m Motif score threshold (" +
@@ -209,7 +212,7 @@ void args::parse(int argc, char **argv) {
 
   int c;
 
-  while ((c = getopt(argc, argv, "hVc:m:g:f:r:lp:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
@@ -217,6 +220,9 @@ void args::parse(int argc, char **argv) {
     case 'V':
       cout << "CLUSTER-BUSTER:  " GIT_COMMIT_INFO << endl;
       exit(0);
+    case 'v':
+      verbose = true;
+      break;
     case 'c':
       score_thresh = atof(optarg);
       if (score_thresh < 0)

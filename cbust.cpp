@@ -570,8 +570,12 @@ int main(int argc, char **argv) {
     istringstream is(seq_name);
     is >> seq_name; // get first word (?)
     seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
-    cerr << "Scanning " << seq_name << " (" << cb::seq.size() << " bp)..."
-         << endl;
+
+    if (args::verbose) {
+      cerr << "Scanning " << seq_name << " (" << cb::seq.size() << " bp)..."
+           << endl;
+    }
+
     cb::scan_seq(seq_num);
     if ((args::out_format == args::BY_SEQUENCE ||
          args::out_format == args::BY_SEQUENCE_CONCISE) &&
@@ -586,7 +590,9 @@ int main(int argc, char **argv) {
     cb::seq.clear();
   }
 
-  cerr << endl;
+  if (args::verbose) {
+    cerr << endl;
+  }
 
   if ((args::out_format == args::BY_SCORE ||
        args::out_format == args::BY_SCORE_CONCISE) &&
