@@ -284,7 +284,8 @@ void args::parse(int argc, char **argv) {
 }
 
 void args::print(ostream &strm, uint seq_num, uint mat_num) {
-  strm << "Sequence file: " << seqfile << " (" << seq_num << " sequences)\n"
+  strm << "Cluster-Buster version: " << GIT_COMMIT_INFO "\n"
+       << "Sequence file: " << seqfile << " (" << seq_num << " sequences)\n"
        << "Matrix file: " << matfile << " (" << mat_num << " matrices)\n"
        << "Expected gap: " << e_gap << '\n'
        << "Range for local abundances: " << bg_range << '\n'
