@@ -454,7 +454,7 @@ void cb::print_hits(ostream &strm, const vector<motif> &hits) {
 }
 
 void cb::output_by_seq(ostream &strm, const seq_info &seq) {
-  strm << '>' << seq.name << " (" << seq.length << " bp)" << '\n' << endl;
+  strm << '>' << seq.name << " (" << seq.length << " bp)\n\n";
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
@@ -470,17 +470,17 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
       strm << i->second << ": " << i->first << '\n';
     strm << r->cluster_seq << '\n';
     print_hits(strm, r->hits);
-    strm << endl;
+    strm << '\n';
   }
 }
 
 void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
-  strm << '>' << seq.name << " (" << seq.length << " bp)" << endl;
+  strm << '>' << seq.name << " (" << seq.length << " bp)\n";
   strm << "# Score\tStart\tEnd";
   for (vector<string>::const_iterator m = mat_names.begin();
        m != mat_names.end(); ++m)
     strm << "\t" << *m;
-  strm << endl;
+  strm << '\n';
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
@@ -488,10 +488,10 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
-    strm << endl;
+    strm << '\n';
   }
 
-  strm << endl;
+  strm << '\n';
 }
 
 void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
@@ -502,7 +502,7 @@ void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
     for (vector<string>::const_iterator m = mat_names.begin();
          m != mat_names.end(); ++m)
       strm << "\t" << *m;
-    strm << endl;
+    strm << '\n';
 
     printed_header = true;
   }
@@ -514,7 +514,7 @@ void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
-    strm << endl;
+    strm << '\n';
   }
 }
 
@@ -544,7 +544,7 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
   for (vector<string>::const_iterator m = mat_names.begin();
        m != mat_names.end(); ++m)
     strm << "\t" << *m;
-  strm << endl;
+  strm << '\n';
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
@@ -553,7 +553,7 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
-    strm << endl;
+    strm << '\n';
   }
 
   strm << endl;
@@ -600,6 +600,7 @@ int main(int argc, char **argv) {
     seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
 
     if (args::verbose) {
+      cout << std::flush;
       cerr << "Scanning " << seq_name << " (" << cb::seq.size() << " bp)..."
            << endl;
     }
@@ -637,7 +638,7 @@ int main(int argc, char **argv) {
   }
 
   if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
-    cout << endl;
+    cout << '\n';
   }
 
   cout.precision(6); // reset to default precision
