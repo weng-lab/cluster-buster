@@ -17,12 +17,16 @@ mediated by motif clusters too.
 
 [Frith MC, Li MC, Weng Z (2003) Cluster-Buster: Finding dense clusters of motifs in DNA sequences. Nucleic Acids Res. 2003 Jul 1; 31(13):3666-8](http://dx.doi.org/10.1093/nar/gkg540)
 
+## Contributors
+
+Martin Frith: m.frith ATaist.go.jp
+Gert Hulselmans (ghuls):
 
 ## Install
 
 ```bash
 # Clone Cluster-Buster git repository
-git clone https://github.com/ghuls/clusterbuster
+git clone https://github.com/weng-lab/clusterbuster
 
 cd clusterbuster
 
@@ -168,6 +172,6 @@ Cluster-Buster: Finding dense clusters of motifs in DNA sequences
 by MC Frith, MC Li & Z Weng in Nucleic Acids Research 31:3666-8 2003
 and references therein.
 
-Comments and questions to Martin Frith: mfrith@zlab.bu.edu.
+Comments and questions to Martin Frith: m.frith ATaist.go.jp
 
 ```
