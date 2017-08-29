@@ -19,16 +19,16 @@ mediated by motif clusters too.
 
 ## Contributors
 
-Martin Frith: m.frith ATaist.go.jp
-Gert Hulselmans (ghuls):
+* Martin Frith: m.frith ATaist.go.jp
+* Gert Hulselmans (ghuls):
 
 ## Install
 
 ```bash
 # Clone Cluster-Buster git repository
-git clone https://github.com/weng-lab/clusterbuster
+git clone https://github.com/weng-lab/cluster-buster
 
-cd clusterbuster
+cd cluster-buster
 
 # Compile Cluster-Buster with g++.
 make cbust
