@@ -20,7 +20,7 @@ mediated by motif clusters too.
 ## Contributors
 
 * Martin Frith (mcfrith): m.frith ATaist.go.jp
-* Gert Hulselmans (ghuls):
+* Gert Hulselmans (ghuls): hulselmansgert ATgmail.com
 
 ## Install
 
