@@ -187,22 +187,15 @@ void args::parse(int argc, char **argv) {
       "-h Help: print documentation\n"
       "-V Show version\n"
       "-v Verbose\n"
-      "-c Cluster score threshold (" +
-      mcf::tostring(score_thresh) + ")\n"
-                                    "-m Motif score threshold (" +
-      mcf::tostring(motif_thresh) +
-      ")\n"
+      "-c Cluster score threshold (" + mcf::tostring(score_thresh) + ")\n"
+      "-m Motif score threshold (" + mcf::tostring(motif_thresh) + ")\n"
       "-g Expected gap (bp) between neighboring motifs in a cluster (" +
-      mcf::tostring(e_gap) +
-      ")\n"
+      mcf::tostring(e_gap) + ")\n"
       "-r Range in bp for counting local nucleotide abundances (" +
       mcf::tostring(bg_range) + ")\n"
-                                "-l Mask lowercase letters\n"
-                                "-p Pseudocount (" +
-      mcf::tostring(pseudo) + ")\n"
-                              "-f Output format (" +
-      mcf::tostring(out_format) +
-      ")\n"
+      "-l Mask lowercase letters\n"
+      "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
+      "-f Output format (" + mcf::tostring(out_format) + ")\n"
       "   0: per sequence (default)\n"
       "   1: per sequence, concise format\n"
       "   2: sorted by cluster score\n"
