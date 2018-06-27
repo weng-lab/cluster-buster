@@ -54,6 +54,7 @@ Options:
 -r Range in bp for counting local nucleotide abundances (100)
 -l Mask lowercase letters
 -p Pseudocount (0.375)
+-t Keep top X clusters per sequence (0 (= all))
 -f Output format (0)
    0: per sequence (default)
    1: per sequence, concise format
@@ -156,6 +157,10 @@ default values are designed to give sensible results.
    are a standard way of estimating underlying frequencies from a limited
    number of observations. If your matrices contain probabilities rather
    than counts, you should probably set this parameter to zero.
+-t Keep X top clusters per sequence (default = 0 (= all)).
+   If set to 1 or higher, keep only this amount of best scoring clusters
+   above the cluster threshold for each sequence. If set to 0, keep all
+   clusters above the cluster threshold for each sequence.
 -f Output format (default = 0).
    0: Print the clusters in the first sequence sorted by score, then the
       clusters in the second sequence sorted by score, etc.
@@ -165,7 +170,7 @@ default values are designed to give sensible results.
    3: Concise version of 2, omitting details of individual motif matches.
    4: Same than 1, but all info on one line.
 
-Example usage: cbust -g20 -l mymotifs myseqs.fa
+Example usage: cbust -g 20 -l mymotifs myseqs.fa
 
 For more information on the Cluster-Buster algorithm, see:
 Cluster-Buster: Finding dense clusters of motifs in DNA sequences

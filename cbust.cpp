@@ -75,6 +75,7 @@ struct s_segment {
   uint end;
   double score;
   s_segment(uint s, uint e, double sc) : start(s), end(e), score(sc) {}
+  s_segment() {}
 };
 
 struct seq_info {
@@ -334,8 +335,19 @@ void cb::scan_seq(uint seq_num) {
       s_segs.push_back(s_segment(start, s->second, scores[start]));
   }
 
+  // Sort by cluster score.
   sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+
+  // Remove overlapping segements (returned segments are sorted by position).
   mcf::remove_overlapping_segments(s_segs, s_segs); // overkill
+
+  if (args::keep_top_x_clusters_per_sequence > 0
+        && args::keep_top_x_clusters_per_sequence < s_segs.size()) {
+      // Sort by cluster score again.
+      sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+      // Keep only the top X clusters per sequence.
+      s_segs.resize(args::keep_top_x_clusters_per_sequence);
+  }
 
   for (vector<s_segment>::const_iterator s = s_segs.begin(); s != s_segs.end();
        ++s) {

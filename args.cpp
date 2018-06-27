@@ -14,6 +14,7 @@ format out_format = BY_SEQUENCE;
 uint bg_range = 100;
 bool mask_lower = false;
 double pseudo = 0.375;
+uint keep_top_x_clusters_per_sequence = 0;
 double tau = 0;
 bool verbose = false;
 }
@@ -156,6 +157,12 @@ void args::parse(int argc, char **argv) {
       "   number of observations. If your matrices contain probabilities "
       "rather\n"
       "   than counts, you should probably set this parameter to zero.\n"
+      "-t Keep X top clusters per sequence (default = 0 (= all)).\n"
+      "   If set to 1 or higher, keep only this amount of best scoring "
+      "clusters\n"
+      "   above the cluster threshold for each sequence. If set to 0, "
+      "keep all\n"
+      "   clusters above the cluster threshold for each sequence.\n"
       "-f Output format (default = " +
       mcf::tostring(out_format) +
       ").\n"
@@ -171,7 +178,7 @@ void args::parse(int argc, char **argv) {
       "matches.\n"
       "   4: Same than 1, but all info on one line.\n"
       "\n"
-      "Example usage: cbust -g20 -l mymotifs myseqs.fa\n"
+      "Example usage: cbust -g 20 -l mymotifs myseqs.fa\n"
       "\n"
       "For more information on the Cluster-Buster algorithm, see:\n"
       "Cluster-Buster: Finding dense clusters of motifs in DNA sequences\n"
@@ -195,6 +202,7 @@ void args::parse(int argc, char **argv) {
       mcf::tostring(bg_range) + ")\n"
       "-l Mask lowercase letters\n"
       "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
+      "-t Keep top X clusters per sequence (0 (= all))\n"
       "-f Output format (" + mcf::tostring(out_format) + ")\n"
       "   0: per sequence (default)\n"
       "   1: per sequence, concise format\n"
@@ -207,7 +215,7 @@ void args::parse(int argc, char **argv) {
 
   int c;
 
-  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:t:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
@@ -264,6 +272,9 @@ void args::parse(int argc, char **argv) {
       if (pseudo < 0)
         mcf::die("Pseudocount should be >= zero");
       break;
+    case 't':
+      keep_top_x_clusters_per_sequence = atoi(optarg);
+      break;
     case 'e':
       tau = atof(optarg);
       if (tau < 0 || tau >= 1)
@@ -289,6 +300,9 @@ void args::print(ostream &strm, uint seq_num, uint mat_num) {
        << "Range for local abundances: " << bg_range << '\n'
        << "Lowercase filtering " << (mask_lower ? "ON\n" : "OFF\n")
        << "Pseudocount: " << pseudo << '\n'
+       << "Keep top X clusters per sequence: "
+       << (keep_top_x_clusters_per_sequence > 0
+           ? mcf::tostring(keep_top_x_clusters_per_sequence) : "0 (= all)") << '\n'
        << "Cluster score threshold: " << score_thresh << '\n'
        << "Motif score threshold: " << motif_thresh << '\n'
        //    << "Tau: " << tau << '\n'
