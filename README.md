@@ -64,6 +64,7 @@ Options:
    2: sorted by cluster score
    3: sorted by cluster score, concise format
    4: per sequence, consise format on one line
+   5: BED file
 ```
 
 ```
@@ -176,13 +177,14 @@ default values are designed to give sensible results.
      0: zero-based
      1: one-based
 -f Output format (default = 0).
-   0: Print the clusters in the first sequence sorted by score, then the
-      clusters in the second sequence sorted by score, etc.
-   1: Concise version of 0, omitting details of individual motif matches.
-   2: Sort all clusters by score, regardless of which sequence they come
-      from.
-   3: Concise version of 2, omitting details of individual motif matches.
-   4: Same than 1, but all info on one line.
+     0: Print the clusters in the first sequence sorted by score, then the
+        clusters in the second sequence sorted by score, etc.
+     1: Concise version of 0, omitting details of individual motif matches.
+     2: Sort all clusters by score, regardless of which sequence they come
+        from.
+     3: Concise version of 2, omitting details of individual motif matches.
+     4: Same than 1, but all info on one line.
+     5: BED file with all info.
 
 Example usage: cbust -g 20 -l mymotifs myseqs.fa
 

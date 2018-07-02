@@ -3,8 +3,8 @@ GIT_COMMIT_INFO			= $(shell git log -1 --format='%ci  commit: %h')
 CXX				= g++
 ICPC				= icpc
 
-CXXFLAGS			= -Wall -O3 -march=native -D NDEBUG
-CXXFLAGS_INTEL			= -Wall -O3 -march=native -D NDEBUG -static
+CXXFLAGS			= -Wall -std=c++0x -O3 -march=native -D NDEBUG
+CXXFLAGS_INTEL			= -Wall -std=c++0x -O3 -march=native -D NDEBUG -static
 CXXFLAGS_GIT_COMMIT_INFO	= -D GIT_COMMIT_INFO="\"$(GIT_COMMIT_INFO)\""
 
 

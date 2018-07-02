@@ -179,17 +179,18 @@ void args::parse(int argc, char **argv) {
       "-f Output format (default = " +
       mcf::tostring(out_format) +
       ").\n"
-      "   0: Print the clusters in the first sequence sorted by score, then "
+      "     0: Print the clusters in the first sequence sorted by score, then "
       "the\n"
-      "      clusters in the second sequence sorted by score, etc.\n"
-      "   1: Concise version of 0, omitting details of individual motif "
+      "        clusters in the second sequence sorted by score, etc.\n"
+      "     1: Concise version of 0, omitting details of individual motif "
       "matches.\n"
-      "   2: Sort all clusters by score, regardless of which sequence they "
+      "     2: Sort all clusters by score, regardless of which sequence they "
       "come\n"
-      "      from.\n"
-      "   3: Concise version of 2, omitting details of individual motif "
+      "        from.\n"
+      "     3: Concise version of 2, omitting details of individual motif "
       "matches.\n"
-      "   4: Same than 1, but all info on one line.\n"
+      "     4: Same than 1, but all info on one line.\n"
+      "     5: BED file with all info.\n"
       "\n"
       "Example usage: cbust -g 20 -l mymotifs myseqs.fa\n"
       "\n"
@@ -225,6 +226,7 @@ void args::parse(int argc, char **argv) {
       "   2: sorted by cluster score\n"
       "   3: sorted by cluster score, concise format\n"
       "   4: per sequence, consise format on one line\n"
+      "   5: BED file\n"
       //"-e  transition probability to HMM end state (tau) (" +
       //mcf::tostring(tau) + ")\n"
       ;
@@ -273,8 +275,11 @@ void args::parse(int argc, char **argv) {
       case 4:
         out_format = BY_SEQUENCE_CONCISE_ONE_LINE;
         break;
+      case 5:
+        out_format = BED;
+        break;
       default:
-        mcf::die("Format should be 0, 1, 2, 3 or 4");
+        mcf::die("Format should be 0, 1, 2, 3, 4 or 5");
       }
       break;
     case 'r':

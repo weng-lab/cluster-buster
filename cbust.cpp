@@ -138,6 +138,7 @@ void print_hits(ostream &strm, const seq_info &seq, const vector<motif> &hits);
 void output_by_seq(ostream &strm, const seq_info &seq);
 void output_by_seq_concise(ostream &strm, const seq_info &seq);
 void output_by_seq_concise_one_line(ostream &strm, const seq_info &seq);
+void output_by_seq_bed(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
 }
@@ -419,8 +420,11 @@ void cb::scan_seq(uint seq_num) {
     }
     vector<motif> hits;
     if (args::out_format == args::BY_SEQUENCE ||
-        args::out_format == args::BY_SCORE)
+        args::out_format == args::BY_SCORE ||
+        args::out_format == args::BED) {
       get_hits(s->start, s->end, bg, hits);
+    }
+
     results.push_back(
         result(seq_num, s->start, s->end, s->score, motif_scores, hits));
   }
@@ -593,6 +597,80 @@ void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
   }
 }
 
+void cb::output_by_seq_bed(ostream &strm, const seq_info &seq) {
+  static bool printed_header = false;
+
+  if (!printed_header) {
+    strm << "# chrom\t"
+            "genomic_start__bed\t"
+            "genomic_end__bed\t"
+            "cluster_id_or_motif_name\t"
+            "cluster_or_motif_score\t"
+            "strand\t"
+            "seq_name\t"
+            "relative_start__bed\t"
+            "relative_end__bed\t"
+            "seq_number\t"
+            "cluster_or_motif\t"
+            "cluster_id\t"
+            "motif_id\t"
+            "motif_sequence\t"
+            "motif_type_contribution_score\t"
+            "extra_info\n";
+
+    printed_header = true;
+  }
+
+  for (vector<result>::const_iterator r = results.begin(); r != results.end();
+       ++r) {
+    uint cluster_number = r - results.begin() + 1;
+    string cluster_id = seq.name + "__cluster_" + to_string(cluster_number);
+
+    strm << seq.chrom << "\t"
+         << seq.genomic_pos + r->start << "\t"
+         << seq.genomic_pos + r->end + 1 << "\t"
+         << cluster_id << "\t"
+         << r->score << "\t"
+         << "+\t"
+         << seq.name << "\t"
+         << r->start << "\t"
+         << r->end + 1 << "\t"
+         << r->seq_num + 1 << "\t"
+         << "cluster\t"
+         << cluster_id << "\t"
+         << "-\t"
+         << "-\t"
+         << "-\t"
+         << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
+
+    for (vector<motif>::const_iterator h = r->hits.begin();
+         h != r->hits.end(); ++h) {
+      // Get motif type contribution score.
+      vector<string>::iterator mat_names_iterator = find(mat_names.begin(),
+                                                         mat_names.end(),
+                                                         h->name);
+      int matrix_name_index = distance(mat_names.begin(), mat_names_iterator);
+
+      strm << seq.chrom << "\t"
+           << seq.genomic_pos + h->start << "\t"
+           << seq.genomic_pos + h->end + 1 << "\t"
+           << h->name << "\t"
+           << h->score << "\t"
+           << h->strand << "\t"
+           << seq.name << "\t"
+           << h->start << "\t"
+           << h->end + 1 << "\t"
+           << r->seq_num + 1 << "\t"
+           << "motif\t"
+           << cluster_id << "\t"
+           << cluster_id << "__motif_" << h->name << "\t"
+           << h->motif_seq << "\t"
+           << r->motif_scores[matrix_name_index] << "\t"
+           << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
+    }
+  }
+}
+
 void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
@@ -663,7 +741,8 @@ int main(int argc, char **argv) {
   string seq_name;
   bool by_sequence = args::out_format == args::BY_SEQUENCE ||
                      args::out_format == args::BY_SEQUENCE_CONCISE ||
-                     args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE;
+                     args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE ||
+                     args::out_format == args::BED;
   cout.setf(ios::left, ios::adjustfield);
   cout.precision(3); // 3 sig figs
 
@@ -700,6 +779,8 @@ int main(int argc, char **argv) {
         cb::output_by_seq_concise(cout, seqs.back());
       } else if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
         cb::output_by_seq_concise_one_line(cout, seqs.back());
+      } else if (args::out_format == args::BED) {
+        cb::output_by_seq_bed(cout, seqs.back());
       }
 
       cb::results.clear();
@@ -725,7 +806,9 @@ int main(int argc, char **argv) {
     cout << '\n';
   }
 
-  cout.precision(6); // reset to default precision
-  args::print(cout, seqs.size(),
-              cb::mat_names.size()); // print command line arguments
+  if (args::out_format != args::BED) {
+      cout.precision(6); // reset to default precision
+      args::print(cout, seqs.size(),
+                  cb::mat_names.size()); // print command line arguments
+  }
 }
