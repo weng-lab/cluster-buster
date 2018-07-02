@@ -137,10 +137,10 @@ void get_matrices();
 void print_hits(ostream &strm, const seq_info &seq, const vector<motif> &hits);
 void output_by_seq(ostream &strm, const seq_info &seq);
 void output_by_seq_concise(ostream &strm, const seq_info &seq);
-void output_by_seq_concise_one_line(ostream &strm, const seq_info &seq);
 void output_by_seq_bed(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
+void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs);
 }
 
 inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
@@ -573,30 +573,6 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
   strm << '\n';
 }
 
-void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
-  static bool printed_header = false;
-
-  if (!printed_header) {
-    strm << "# Sequence\tScore\tStart\tEnd";
-    for (vector<string>::const_iterator m = mat_names.begin();
-         m != mat_names.end(); ++m)
-      strm << "\t" << *m;
-    strm << '\n';
-
-    printed_header = true;
-  }
-
-  for (vector<result>::const_iterator r = results.begin(); r != results.end();
-       ++r) {
-    strm << seq.name << "\t" << r->score << "\t" << seq.genomic_pos + r->start + 1
-         << "\t" << seq.genomic_pos + r->end + 1;
-    for (vector<double>::const_iterator m = r->motif_scores.begin();
-         m != r->motif_scores.end(); ++m)
-      strm << "\t" << *m;
-    strm << '\n';
-  }
-}
-
 void cb::output_by_seq_bed(ostream &strm, const seq_info &seq) {
   static bool printed_header = false;
 
@@ -716,6 +692,23 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
   strm << endl;
 }
 
+void cb::output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs) {
+  strm << "# Sequence name\tScore\tSequence number\tRank\n";
+
+  uint rank_position = 1;
+
+  for (vector<result>::const_iterator r = results.begin(); r != results.end();
+       ++r) {
+    strm << seqs[r->seq_num].name << "\t"
+         << r->score << "\t"
+         << r->seq_num << "\t"
+         << rank_position << "\n";
+    rank_position++;
+  }
+
+  strm << std::flush;
+}
+
 // I'll probably move this to a library
 inline std::ifstream &open_or_die(const std::string &filename,
                                   std::ifstream &strm) {
@@ -741,7 +734,6 @@ int main(int argc, char **argv) {
   string seq_name;
   bool by_sequence = args::out_format == args::BY_SEQUENCE ||
                      args::out_format == args::BY_SEQUENCE_CONCISE ||
-                     args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE ||
                      args::out_format == args::BED;
   cout.setf(ios::left, ios::adjustfield);
   cout.precision(3); // 3 sig figs
@@ -777,8 +769,6 @@ int main(int argc, char **argv) {
         cb::output_by_seq(cout, seqs.back());
       } else if (args::out_format == args::BY_SEQUENCE_CONCISE) {
         cb::output_by_seq_concise(cout, seqs.back());
-      } else if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
-        cb::output_by_seq_concise_one_line(cout, seqs.back());
       } else if (args::out_format == args::BED) {
         cb::output_by_seq_bed(cout, seqs.back());
       }
@@ -789,26 +779,31 @@ int main(int argc, char **argv) {
   }
 
   if (args::verbose) {
+    cout << std::flush;
     cerr << endl;
   }
 
   if ((args::out_format == args::BY_SCORE ||
-       args::out_format == args::BY_SCORE_CONCISE) &&
+       args::out_format == args::BY_SCORE_CONCISE ||
+       args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) &&
       !cb::results.empty()) {
     sort(cb::results.begin(), cb::results.end(), byscore<cb::result>());
-    if (args::out_format == args::BY_SCORE)
+
+    if (args::out_format == args::BY_SCORE) {
       cb::output_by_score(cout, seqs);
-    else
+    } else if (args::out_format == args::BY_SCORE_CONCISE) {
       cb::output_by_score_concise(cout, seqs);
+    } else if (args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) {
+      cb::output_sequence_name_sorted_by_score(cout, seqs);
+    }
   }
 
-  if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
-    cout << '\n';
-  }
-
-  if (args::out_format != args::BED) {
+  if (args::out_format != args::SEQUENCE_NAME_SORTED_BY_SCORE &&
+      args::out_format != args::BED) {
       cout.precision(6); // reset to default precision
       args::print(cout, seqs.size(),
                   cb::mat_names.size()); // print command line arguments
   }
+
+  cout << std::flush;
 }

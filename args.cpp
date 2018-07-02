@@ -190,6 +190,9 @@ void args::parse(int argc, char **argv) {
       "     3: Concise version of 2, omitting details of individual motif "
       "matches.\n"
       "     4: Same than 1, but all info on one line.\n"
+      "     4: Sort all clusters by score and output sequence name, score, "
+      "number\n"
+      "        of the sequence in the FASTA file, ranking of the score.\n"
       "     5: BED file with all info.\n"
       "\n"
       "Example usage: cbust -g 20 -l mymotifs myseqs.fa\n"
@@ -225,7 +228,7 @@ void args::parse(int argc, char **argv) {
       "   1: per sequence, concise format\n"
       "   2: sorted by cluster score\n"
       "   3: sorted by cluster score, concise format\n"
-      "   4: per sequence, consise format on one line\n"
+      "   4: sorted by cluster score: seq name, score, seq number, rank\n"
       "   5: BED file\n"
       //"-e  transition probability to HMM end state (tau) (" +
       //mcf::tostring(tau) + ")\n"
@@ -273,7 +276,7 @@ void args::parse(int argc, char **argv) {
         out_format = BY_SCORE_CONCISE;
         break;
       case 4:
-        out_format = BY_SEQUENCE_CONCISE_ONE_LINE;
+        out_format = SEQUENCE_NAME_SORTED_BY_SCORE;
         break;
       case 5:
         out_format = BED;
