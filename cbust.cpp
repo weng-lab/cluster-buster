@@ -81,7 +81,14 @@ struct s_segment {
 struct seq_info {
   string name;
   uint length;
-  seq_info(const string &n, uint l) : name(n), length(l) {}
+  string chrom;
+  uint genomic_pos;
+  string extra_info;
+  seq_info(const string &n, uint l) : name(n), length(l), chrom(n),
+                                      genomic_pos(0), extra_info("") {}
+  seq_info(const string &n, uint l, const string &c, uint p,
+           const string &e) :
+      name(n), length(l), chrom(c), genomic_pos(p), extra_info(e) {}
 };
 
 struct motif { // a predicted cis-element within a cluster
@@ -114,6 +121,7 @@ uint max_motif_width;
 string::size_type max_motif_name_len; // for pretty-printing
 vector<result> results;
 
+cb::seq_info get_chrom_and_pos(string &seq_name, uint length, bool zero_based);
 void init_bg(uint *bg_counts, uint &bg_tot);
 void get_bg(vector<double> &bg);
 void get_hits(uint start, uint end, const vector<double> &bg,
@@ -126,12 +134,63 @@ void scan_seq(uint seq_num);
 void misc_init();
 void fifth_column(const matrix<float> &m1, matrix<double> &m2);
 void get_matrices();
-void print_hits(ostream &strm, const vector<motif> &hits);
+void print_hits(ostream &strm, const seq_info &seq, const vector<motif> &hits);
 void output_by_seq(ostream &strm, const seq_info &seq);
 void output_by_seq_concise(ostream &strm, const seq_info &seq);
 void output_by_seq_concise_one_line(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
+}
+
+inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
+  // Extract chromosome name, start position and extra info from
+  // sequence name.
+  //
+  // Examples of sequence names from which chromosome names and
+  // start positions can be extracted:
+  //   - chr10:123456
+  //   - chr10:123456-234567
+  //   - chr10:123456@@gene_name
+  //   - chr10:123456-234567@@gene_name
+
+  string::size_type pos_extra_info = seq_name.find("@@");
+  string chrom_and_pos;
+  string chrom;
+  uint genomic_pos;
+  string extra_info;
+
+  // Check if we have extra info (text after "@@").
+  if (pos_extra_info != string::npos && pos_extra_info > 2) {
+    chrom_and_pos = seq_name.substr(0, pos_extra_info);
+    extra_info = seq_name.substr(pos_extra_info + 2);
+  } else {
+    chrom_and_pos = seq_name;
+    extra_info = "";
+  }
+
+  string::size_type pos_chrom_pos = chrom_and_pos.find(":");
+
+  // Check if we have a chromosome name before the ":".
+  if (pos_chrom_pos != string::npos && pos_chrom_pos > 0) {
+    chrom = chrom_and_pos.substr(0, pos_chrom_pos);
+
+    // Extract the genomic start position from strings with:
+    //   - only start position: "([0-9]+)"
+    //   - start and end position: "([0-9]+)-[0-9]+"
+    //   - no number ==> set to 0
+    genomic_pos = atoi(chrom_and_pos.substr(pos_chrom_pos + 1).c_str());
+
+    // Convert one-based to zero-based start position, if necessary.
+    if (!zero_based) {
+      genomic_pos -= 1;
+    }
+  } else {
+    // No chromosomal position was found.
+    chrom = seq_name;
+    genomic_pos = 0;
+  }
+
+  return cb::seq_info(seq_name, length, chrom, genomic_pos, extra_info);
 }
 
 cb::motif::motif(uint mat_index, uint s, uint e, double sc)
@@ -459,10 +518,12 @@ void cb::get_matrices() {
   }
 }
 
-void cb::print_hits(ostream &strm, const vector<motif> &hits) {
+void cb::print_hits(ostream &strm, const seq_info &seq,
+                    const vector<motif> &hits) {
   for (vector<motif>::const_iterator h = hits.begin(); h != hits.end(); ++h)
-    strm << h->name << "\t" << h->start + 1 << "\t" << h->end + 1 << "\t"
-         << h->strand << "\t" << h->score << "\t" << h->motif_seq << '\n';
+    strm << h->name << "\t" << seq.genomic_pos + h->start + 1 << "\t"
+         << seq.genomic_pos + h->end + 1 << "\t" << h->strand << "\t"
+         << h->score << "\t" << h->motif_seq << '\n';
 }
 
 void cb::output_by_seq(ostream &strm, const seq_info &seq) {
@@ -471,7 +532,8 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
     strm << "CLUSTER " << r - results.begin() + 1 << '\n'
-         << "Location: " << r->start + 1 << " to " << r->end + 1 << '\n'
+         << "Location: " << seq.genomic_pos + r->start + 1 << " to "
+                         << seq.genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
     for (uint m = 0; m != mat_names.size(); ++m)
@@ -481,7 +543,7 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
          i != x.end(); ++i)
       strm << i->second << ": " << i->first << '\n';
     strm << r->cluster_seq << '\n';
-    print_hits(strm, r->hits);
+    print_hits(strm, seq, r->hits);
     strm << '\n';
   }
 }
@@ -496,7 +558,8 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << r->score << "\t" << r->start + 1 << "\t" << r->end + 1;
+    strm << r->score << "\t" << seq.genomic_pos + r->start + 1 << "\t"
+         << seq.genomic_pos + r->end + 1;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
@@ -521,8 +584,8 @@ void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << seq.name << "\t" << r->score << "\t" << r->start + 1 << "\t"
-         << r->end + 1;
+    strm << seq.name << "\t" << r->score << "\t" << seq.genomic_pos + r->start + 1
+         << "\t" << seq.genomic_pos + r->end + 1;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
@@ -536,7 +599,9 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
     strm << "CLUSTER " << r - results.begin() + 1 << '\n'
          << '>' << seqs[r->seq_num].name << " (" << seqs[r->seq_num].length
          << " bp)\n"
-         << "Location: " << r->start + 1 << " to " << r->end + 1 << '\n'
+         << "Location: "
+         << seqs[r->seq_num].genomic_pos + r->start + 1 << " to "
+         << seqs[r->seq_num].genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
     for (uint m = 0; m != mat_names.size(); ++m)
@@ -546,7 +611,7 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
          i != x.end(); ++i)
       strm << i->second << ": " << i->first << '\n';
     strm << r->cluster_seq << '\n';
-    print_hits(strm, r->hits);
+    print_hits(strm, seqs[r->seq_num], r->hits);
     strm << endl;
   }
 }
@@ -560,7 +625,9 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << r->score << "\t" << r->start + 1 << "\t" << r->end + 1 << "\t"
+    strm << r->score << "\t"
+         << seqs[r->seq_num].genomic_pos + r->start + 1 << "\t"
+         << seqs[r->seq_num].genomic_pos + r->end + 1 << "\t"
          << seqs[r->seq_num].name;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
@@ -609,7 +676,12 @@ int main(int argc, char **argv) {
     } // the one-liner version of this trick confuses my compiler
     istringstream is(seq_name);
     is >> seq_name; // get first word (?)
-    seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+
+    if (args::genomic_coordinates) {
+        seqs.push_back(cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
+    } else {
+        seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+    }
 
     if (args::verbose) {
       cout << std::flush;

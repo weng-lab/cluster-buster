@@ -15,6 +15,8 @@ uint bg_range = 100;
 bool mask_lower = false;
 double pseudo = 0.375;
 uint keep_top_x_clusters_per_sequence = 0;
+bool genomic_coordinates = false;
+bool zero_based = false;
 double tau = 0;
 bool verbose = false;
 }
@@ -163,6 +165,17 @@ void args::parse(int argc, char **argv) {
       "   above the cluster threshold for each sequence. If set to 0, "
       "keep all\n"
       "   clusters above the cluster threshold for each sequence.\n"
+      "-G Extract genomic coordinates from sequence name and output genomic\n"
+      "   coordinates instead of relative coordinates.\n"
+      "   Examples of sequence names from which chromosome names and start\n"
+      "   positions can be extracted:\n"
+      "     - chr10:123456\n"
+      "     - chr10:123456-234567\n"
+      "     - chr10:123456@@gene_name\n"
+      "     - chr10:123456-234567@@gene_name\n"
+      "   Specify if the start coordinate is zero- or one-based:\n"
+      "     0: zero-based\n"
+      "     1: one-based\n"
       "-f Output format (default = " +
       mcf::tostring(out_format) +
       ").\n"
@@ -203,6 +216,9 @@ void args::parse(int argc, char **argv) {
       "-l Mask lowercase letters\n"
       "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
       "-t Keep top X clusters per sequence (0 (= all))\n"
+      "-G Use genomic coordinates (extracted from sequence name)\n"
+      "   0: zero-based start coordinate\n"
+      "   1: one-based start coordinate\n"
       "-f Output format (" + mcf::tostring(out_format) + ")\n"
       "   0: per sequence (default)\n"
       "   1: per sequence, concise format\n"
@@ -215,7 +231,7 @@ void args::parse(int argc, char **argv) {
 
   int c;
 
-  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:t:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:t:G:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
@@ -275,6 +291,19 @@ void args::parse(int argc, char **argv) {
     case 't':
       keep_top_x_clusters_per_sequence = atoi(optarg);
       break;
+    case 'G':
+      genomic_coordinates = true;
+      {
+        string zero_or_one = string(optarg);
+        if (zero_or_one == "0") {
+          zero_based = true;
+        } else if (zero_or_one == "1") {
+          zero_based = false;
+        } else {
+          mcf::die("Specify if genomic start coordinate is zero- or one-based");
+        }
+      }
+      break;
     case 'e':
       tau = atof(optarg);
       if (tau < 0 || tau >= 1)
@@ -298,11 +327,15 @@ void args::print(ostream &strm, uint seq_num, uint mat_num) {
        << "Matrix file: " << matfile << " (" << mat_num << " matrices)\n"
        << "Expected gap: " << e_gap << '\n'
        << "Range for local abundances: " << bg_range << '\n'
-       << "Lowercase filtering " << (mask_lower ? "ON\n" : "OFF\n")
+       << "Lowercase filtering: " << (mask_lower ? "ON\n" : "OFF\n")
        << "Pseudocount: " << pseudo << '\n'
        << "Keep top X clusters per sequence: "
        << (keep_top_x_clusters_per_sequence > 0
            ? mcf::tostring(keep_top_x_clusters_per_sequence) : "0 (= all)") << '\n'
+       << "Extract genomic coordinates from sequence name: "
+       << (genomic_coordinates
+           ? (zero_based) ? "ON (zero-based)\n" : "ON (one-based)\n"
+           : "OFF\n")
        << "Cluster score threshold: " << score_thresh << '\n'
        << "Motif score threshold: " << motif_thresh << '\n'
        //    << "Tau: " << tau << '\n'

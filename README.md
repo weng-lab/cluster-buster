@@ -55,6 +55,9 @@ Options:
 -l Mask lowercase letters
 -p Pseudocount (0.375)
 -t Keep top X clusters per sequence (0 (= all))
+-G Use genomic coordinates (extracted from sequence name)
+   0: zero-based start coordinate
+   1: one-based start coordinate
 -f Output format (0)
    0: per sequence (default)
    1: per sequence, concise format
@@ -161,6 +164,17 @@ default values are designed to give sensible results.
    If set to 1 or higher, keep only this amount of best scoring clusters
    above the cluster threshold for each sequence. If set to 0, keep all
    clusters above the cluster threshold for each sequence.
+-G Extract genomic coordinates from sequence name and output genomic
+   coordinates instead of relative coordinates.
+   Examples of sequence names from which chromosome names and start
+   positions can be extracted:
+     - chr10:123456
+     - chr10:123456-234567
+     - chr10:123456@@gene_name
+     - chr10:123456-234567@@gene_name
+   Specify if the start coordinate is zero- or one-based:
+     0: zero-based
+     1: one-based
 -f Output format (default = 0).
    0: Print the clusters in the first sequence sorted by score, then the
       clusters in the second sequence sorted by score, etc.
