@@ -11,12 +11,15 @@ extern double score_thresh; // Print clusters with scores >= this
 extern double motif_thresh; // Print motifs inside clusters with scores >= this
 extern double e_gap;        // Expected distance between pairs of cis-elements
 extern bool gap_specified;  // Did the user specify a value for e_gap?
-enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE, BY_SEQUENCE_CONCISE_ONE_LINE };
+enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE, SEQUENCE_NAME_SORTED_BY_SCORE, BED };
 extern format out_format;
 extern uint bg_range;   // Go up to this far either side of current base
                         // when counting local base abundances
 extern bool mask_lower; // mask lowercase letters?
 extern double pseudo;   // Pseudocount to add to all matrix entries
+extern uint keep_top_x_clusters_per_sequence; // Keep top X clusters per sequence
+extern bool genomic_coordinates;              // Use genomic coordinates instead of relative coordinates
+extern bool zero_based; // Is start coordinate in sequence name zero-based or one-based
 extern double tau;      // Transition probability to "end" state of HMM
 extern bool verbose;    // Be verbose or not
 

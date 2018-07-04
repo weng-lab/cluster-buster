@@ -14,6 +14,9 @@ format out_format = BY_SEQUENCE;
 uint bg_range = 100;
 bool mask_lower = false;
 double pseudo = 0.375;
+uint keep_top_x_clusters_per_sequence = 0;
+bool genomic_coordinates = false;
+bool zero_based = false;
 double tau = 0;
 bool verbose = false;
 }
@@ -156,22 +159,43 @@ void args::parse(int argc, char **argv) {
       "   number of observations. If your matrices contain probabilities "
       "rather\n"
       "   than counts, you should probably set this parameter to zero.\n"
+      "-t Keep X top clusters per sequence (default = 0 (= all)).\n"
+      "   If set to 1 or higher, keep only this amount of best scoring "
+      "clusters\n"
+      "   above the cluster threshold for each sequence. If set to 0, "
+      "keep all\n"
+      "   clusters above the cluster threshold for each sequence.\n"
+      "-G Extract genomic coordinates from sequence name and output genomic\n"
+      "   coordinates instead of relative coordinates.\n"
+      "   Examples of sequence names from which chromosome names and start\n"
+      "   positions can be extracted:\n"
+      "     - chr10:123456\n"
+      "     - chr10:123456-234567\n"
+      "     - chr10:123456@@gene_name\n"
+      "     - chr10:123456-234567@@gene_name\n"
+      "   Specify if the start coordinate is zero- or one-based:\n"
+      "     0: zero-based\n"
+      "     1: one-based\n"
       "-f Output format (default = " +
       mcf::tostring(out_format) +
       ").\n"
-      "   0: Print the clusters in the first sequence sorted by score, then "
+      "     0: Print the clusters in the first sequence sorted by score, then "
       "the\n"
-      "      clusters in the second sequence sorted by score, etc.\n"
-      "   1: Concise version of 0, omitting details of individual motif "
+      "        clusters in the second sequence sorted by score, etc.\n"
+      "     1: Concise version of 0, omitting details of individual motif "
       "matches.\n"
-      "   2: Sort all clusters by score, regardless of which sequence they "
+      "     2: Sort all clusters by score, regardless of which sequence they "
       "come\n"
-      "      from.\n"
-      "   3: Concise version of 2, omitting details of individual motif "
+      "        from.\n"
+      "     3: Concise version of 2, omitting details of individual motif "
       "matches.\n"
-      "   4: Same than 1, but all info on one line.\n"
+      "     4: Same than 1, but all info on one line.\n"
+      "     4: Sort all clusters by score and output sequence name, score, "
+      "number\n"
+      "        of the sequence in the FASTA file, ranking of the score.\n"
+      "     5: BED file with all info.\n"
       "\n"
-      "Example usage: cbust -g20 -l mymotifs myseqs.fa\n"
+      "Example usage: cbust -g 20 -l mymotifs myseqs.fa\n"
       "\n"
       "For more information on the Cluster-Buster algorithm, see:\n"
       "Cluster-Buster: Finding dense clusters of motifs in DNA sequences\n"
@@ -187,34 +211,32 @@ void args::parse(int argc, char **argv) {
       "-h Help: print documentation\n"
       "-V Show version\n"
       "-v Verbose\n"
-      "-c Cluster score threshold (" +
-      mcf::tostring(score_thresh) + ")\n"
-                                    "-m Motif score threshold (" +
-      mcf::tostring(motif_thresh) +
-      ")\n"
+      "-c Cluster score threshold (" + mcf::tostring(score_thresh) + ")\n"
+      "-m Motif score threshold (" + mcf::tostring(motif_thresh) + ")\n"
       "-g Expected gap (bp) between neighboring motifs in a cluster (" +
-      mcf::tostring(e_gap) +
-      ")\n"
+      mcf::tostring(e_gap) + ")\n"
       "-r Range in bp for counting local nucleotide abundances (" +
       mcf::tostring(bg_range) + ")\n"
-                                "-l Mask lowercase letters\n"
-                                "-p Pseudocount (" +
-      mcf::tostring(pseudo) + ")\n"
-                              "-f Output format (" +
-      mcf::tostring(out_format) +
-      ")\n"
+      "-l Mask lowercase letters\n"
+      "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
+      "-t Keep top X clusters per sequence (0 (= all))\n"
+      "-G Use genomic coordinates (extracted from sequence name)\n"
+      "   0: zero-based start coordinate\n"
+      "   1: one-based start coordinate\n"
+      "-f Output format (" + mcf::tostring(out_format) + ")\n"
       "   0: per sequence (default)\n"
       "   1: per sequence, concise format\n"
       "   2: sorted by cluster score\n"
       "   3: sorted by cluster score, concise format\n"
-      "   4: per sequence, consise format on one line\n"
+      "   4: sorted by cluster score: seq name, score, seq number, rank\n"
+      "   5: BED file\n"
       //"-e  transition probability to HMM end state (tau) (" +
       //mcf::tostring(tau) + ")\n"
       ;
 
   int c;
 
-  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:t:G:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
@@ -254,10 +276,13 @@ void args::parse(int argc, char **argv) {
         out_format = BY_SCORE_CONCISE;
         break;
       case 4:
-        out_format = BY_SEQUENCE_CONCISE_ONE_LINE;
+        out_format = SEQUENCE_NAME_SORTED_BY_SCORE;
+        break;
+      case 5:
+        out_format = BED;
         break;
       default:
-        mcf::die("Format should be 0, 1, 2, 3 or 4");
+        mcf::die("Format should be 0, 1, 2, 3, 4 or 5");
       }
       break;
     case 'r':
@@ -270,6 +295,22 @@ void args::parse(int argc, char **argv) {
       pseudo = atof(optarg);
       if (pseudo < 0)
         mcf::die("Pseudocount should be >= zero");
+      break;
+    case 't':
+      keep_top_x_clusters_per_sequence = atoi(optarg);
+      break;
+    case 'G':
+      genomic_coordinates = true;
+      {
+        string zero_or_one = string(optarg);
+        if (zero_or_one == "0") {
+          zero_based = true;
+        } else if (zero_or_one == "1") {
+          zero_based = false;
+        } else {
+          mcf::die("Specify if genomic start coordinate is zero- or one-based");
+        }
+      }
       break;
     case 'e':
       tau = atof(optarg);
@@ -294,8 +335,15 @@ void args::print(ostream &strm, uint seq_num, uint mat_num) {
        << "Matrix file: " << matfile << " (" << mat_num << " matrices)\n"
        << "Expected gap: " << e_gap << '\n'
        << "Range for local abundances: " << bg_range << '\n'
-       << "Lowercase filtering " << (mask_lower ? "ON\n" : "OFF\n")
+       << "Lowercase filtering: " << (mask_lower ? "ON\n" : "OFF\n")
        << "Pseudocount: " << pseudo << '\n'
+       << "Keep top X clusters per sequence: "
+       << (keep_top_x_clusters_per_sequence > 0
+           ? mcf::tostring(keep_top_x_clusters_per_sequence) : "0 (= all)") << '\n'
+       << "Extract genomic coordinates from sequence name: "
+       << (genomic_coordinates
+           ? (zero_based) ? "ON (zero-based)\n" : "ON (one-based)\n"
+           : "OFF\n")
        << "Cluster score threshold: " << score_thresh << '\n'
        << "Motif score threshold: " << motif_thresh << '\n'
        //    << "Tau: " << tau << '\n'

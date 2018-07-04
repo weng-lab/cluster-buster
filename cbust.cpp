@@ -75,12 +75,20 @@ struct s_segment {
   uint end;
   double score;
   s_segment(uint s, uint e, double sc) : start(s), end(e), score(sc) {}
+  s_segment() {}
 };
 
 struct seq_info {
   string name;
   uint length;
-  seq_info(const string &n, uint l) : name(n), length(l) {}
+  string chrom;
+  uint genomic_pos;
+  string extra_info;
+  seq_info(const string &n, uint l) : name(n), length(l), chrom(n),
+                                      genomic_pos(0), extra_info("") {}
+  seq_info(const string &n, uint l, const string &c, uint p,
+           const string &e) :
+      name(n), length(l), chrom(c), genomic_pos(p), extra_info(e) {}
 };
 
 struct motif { // a predicted cis-element within a cluster
@@ -113,6 +121,7 @@ uint max_motif_width;
 string::size_type max_motif_name_len; // for pretty-printing
 vector<result> results;
 
+cb::seq_info get_chrom_and_pos(string &seq_name, uint length, bool zero_based);
 void init_bg(uint *bg_counts, uint &bg_tot);
 void get_bg(vector<double> &bg);
 void get_hits(uint start, uint end, const vector<double> &bg,
@@ -125,12 +134,64 @@ void scan_seq(uint seq_num);
 void misc_init();
 void fifth_column(const matrix<float> &m1, matrix<double> &m2);
 void get_matrices();
-void print_hits(ostream &strm, const vector<motif> &hits);
+void print_hits(ostream &strm, const seq_info &seq, const vector<motif> &hits);
 void output_by_seq(ostream &strm, const seq_info &seq);
 void output_by_seq_concise(ostream &strm, const seq_info &seq);
-void output_by_seq_concise_one_line(ostream &strm, const seq_info &seq);
+void output_by_seq_bed(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
+void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs);
+}
+
+inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
+  // Extract chromosome name, start position and extra info from
+  // sequence name.
+  //
+  // Examples of sequence names from which chromosome names and
+  // start positions can be extracted:
+  //   - chr10:123456
+  //   - chr10:123456-234567
+  //   - chr10:123456@@gene_name
+  //   - chr10:123456-234567@@gene_name
+
+  string::size_type pos_extra_info = seq_name.find("@@");
+  string chrom_and_pos;
+  string chrom;
+  uint genomic_pos;
+  string extra_info;
+
+  // Check if we have extra info (text after "@@").
+  if (pos_extra_info != string::npos && pos_extra_info > 2) {
+    chrom_and_pos = seq_name.substr(0, pos_extra_info);
+    extra_info = seq_name.substr(pos_extra_info + 2);
+  } else {
+    chrom_and_pos = seq_name;
+    extra_info = "";
+  }
+
+  string::size_type pos_chrom_pos = chrom_and_pos.find(":");
+
+  // Check if we have a chromosome name before the ":".
+  if (pos_chrom_pos != string::npos && pos_chrom_pos > 0) {
+    chrom = chrom_and_pos.substr(0, pos_chrom_pos);
+
+    // Extract the genomic start position from strings with:
+    //   - only start position: "([0-9]+)"
+    //   - start and end position: "([0-9]+)-[0-9]+"
+    //   - no number ==> set to 0
+    genomic_pos = atoi(chrom_and_pos.substr(pos_chrom_pos + 1).c_str());
+
+    // Convert one-based to zero-based start position, if necessary.
+    if (!zero_based) {
+      genomic_pos -= 1;
+    }
+  } else {
+    // No chromosomal position was found.
+    chrom = seq_name;
+    genomic_pos = 0;
+  }
+
+  return cb::seq_info(seq_name, length, chrom, genomic_pos, extra_info);
 }
 
 cb::motif::motif(uint mat_index, uint s, uint e, double sc)
@@ -334,8 +395,19 @@ void cb::scan_seq(uint seq_num) {
       s_segs.push_back(s_segment(start, s->second, scores[start]));
   }
 
+  // Sort by cluster score.
   sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+
+  // Remove overlapping segements (returned segments are sorted by position).
   mcf::remove_overlapping_segments(s_segs, s_segs); // overkill
+
+  if (args::keep_top_x_clusters_per_sequence > 0
+        && args::keep_top_x_clusters_per_sequence < s_segs.size()) {
+      // Sort by cluster score again.
+      sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+      // Keep only the top X clusters per sequence.
+      s_segs.resize(args::keep_top_x_clusters_per_sequence);
+  }
 
   for (vector<s_segment>::const_iterator s = s_segs.begin(); s != s_segs.end();
        ++s) {
@@ -348,8 +420,11 @@ void cb::scan_seq(uint seq_num) {
     }
     vector<motif> hits;
     if (args::out_format == args::BY_SEQUENCE ||
-        args::out_format == args::BY_SCORE)
+        args::out_format == args::BY_SCORE ||
+        args::out_format == args::BED) {
       get_hits(s->start, s->end, bg, hits);
+    }
+
     results.push_back(
         result(seq_num, s->start, s->end, s->score, motif_scores, hits));
   }
@@ -447,10 +522,12 @@ void cb::get_matrices() {
   }
 }
 
-void cb::print_hits(ostream &strm, const vector<motif> &hits) {
+void cb::print_hits(ostream &strm, const seq_info &seq,
+                    const vector<motif> &hits) {
   for (vector<motif>::const_iterator h = hits.begin(); h != hits.end(); ++h)
-    strm << h->name << "\t" << h->start + 1 << "\t" << h->end + 1 << "\t"
-         << h->strand << "\t" << h->score << "\t" << h->motif_seq << '\n';
+    strm << h->name << "\t" << seq.genomic_pos + h->start + 1 << "\t"
+         << seq.genomic_pos + h->end + 1 << "\t" << h->strand << "\t"
+         << h->score << "\t" << h->motif_seq << '\n';
 }
 
 void cb::output_by_seq(ostream &strm, const seq_info &seq) {
@@ -459,7 +536,8 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
     strm << "CLUSTER " << r - results.begin() + 1 << '\n'
-         << "Location: " << r->start + 1 << " to " << r->end + 1 << '\n'
+         << "Location: " << seq.genomic_pos + r->start + 1 << " to "
+                         << seq.genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
     for (uint m = 0; m != mat_names.size(); ++m)
@@ -469,7 +547,7 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
          i != x.end(); ++i)
       strm << i->second << ": " << i->first << '\n';
     strm << r->cluster_seq << '\n';
-    print_hits(strm, r->hits);
+    print_hits(strm, seq, r->hits);
     strm << '\n';
   }
 }
@@ -484,7 +562,8 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << r->score << "\t" << r->start + 1 << "\t" << r->end + 1;
+    strm << r->score << "\t" << seq.genomic_pos + r->start + 1 << "\t"
+         << seq.genomic_pos + r->end + 1;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
       strm << "\t" << *m;
@@ -494,27 +573,77 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
   strm << '\n';
 }
 
-void cb::output_by_seq_concise_one_line(ostream &strm, const seq_info &seq) {
+void cb::output_by_seq_bed(ostream &strm, const seq_info &seq) {
   static bool printed_header = false;
 
   if (!printed_header) {
-    strm << "# Sequence\tScore\tStart\tEnd";
-    for (vector<string>::const_iterator m = mat_names.begin();
-         m != mat_names.end(); ++m)
-      strm << "\t" << *m;
-    strm << '\n';
+    strm << "# chrom\t"
+            "genomic_start__bed\t"
+            "genomic_end__bed\t"
+            "cluster_id_or_motif_name\t"
+            "cluster_or_motif_score\t"
+            "strand\t"
+            "seq_name\t"
+            "relative_start__bed\t"
+            "relative_end__bed\t"
+            "seq_number\t"
+            "cluster_or_motif\t"
+            "cluster_id\t"
+            "motif_id\t"
+            "motif_sequence\t"
+            "motif_type_contribution_score\t"
+            "extra_info\n";
 
     printed_header = true;
   }
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << seq.name << "\t" << r->score << "\t" << r->start + 1 << "\t"
-         << r->end + 1;
-    for (vector<double>::const_iterator m = r->motif_scores.begin();
-         m != r->motif_scores.end(); ++m)
-      strm << "\t" << *m;
-    strm << '\n';
+    uint cluster_number = r - results.begin() + 1;
+    string cluster_id = seq.name + "__cluster_" + to_string(cluster_number);
+
+    strm << seq.chrom << "\t"
+         << seq.genomic_pos + r->start << "\t"
+         << seq.genomic_pos + r->end + 1 << "\t"
+         << cluster_id << "\t"
+         << r->score << "\t"
+         << "+\t"
+         << seq.name << "\t"
+         << r->start << "\t"
+         << r->end + 1 << "\t"
+         << r->seq_num + 1 << "\t"
+         << "cluster\t"
+         << cluster_id << "\t"
+         << "-\t"
+         << "-\t"
+         << "-\t"
+         << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
+
+    for (vector<motif>::const_iterator h = r->hits.begin();
+         h != r->hits.end(); ++h) {
+      // Get motif type contribution score.
+      vector<string>::iterator mat_names_iterator = find(mat_names.begin(),
+                                                         mat_names.end(),
+                                                         h->name);
+      int matrix_name_index = distance(mat_names.begin(), mat_names_iterator);
+
+      strm << seq.chrom << "\t"
+           << seq.genomic_pos + h->start << "\t"
+           << seq.genomic_pos + h->end + 1 << "\t"
+           << h->name << "\t"
+           << h->score << "\t"
+           << h->strand << "\t"
+           << seq.name << "\t"
+           << h->start << "\t"
+           << h->end + 1 << "\t"
+           << r->seq_num + 1 << "\t"
+           << "motif\t"
+           << cluster_id << "\t"
+           << cluster_id << "__motif_" << h->name << "\t"
+           << h->motif_seq << "\t"
+           << r->motif_scores[matrix_name_index] << "\t"
+           << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
+    }
   }
 }
 
@@ -524,7 +653,9 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
     strm << "CLUSTER " << r - results.begin() + 1 << '\n'
          << '>' << seqs[r->seq_num].name << " (" << seqs[r->seq_num].length
          << " bp)\n"
-         << "Location: " << r->start + 1 << " to " << r->end + 1 << '\n'
+         << "Location: "
+         << seqs[r->seq_num].genomic_pos + r->start + 1 << " to "
+         << seqs[r->seq_num].genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
     for (uint m = 0; m != mat_names.size(); ++m)
@@ -534,7 +665,7 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
          i != x.end(); ++i)
       strm << i->second << ": " << i->first << '\n';
     strm << r->cluster_seq << '\n';
-    print_hits(strm, r->hits);
+    print_hits(strm, seqs[r->seq_num], r->hits);
     strm << endl;
   }
 }
@@ -548,7 +679,9 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << r->score << "\t" << r->start + 1 << "\t" << r->end + 1 << "\t"
+    strm << r->score << "\t"
+         << seqs[r->seq_num].genomic_pos + r->start + 1 << "\t"
+         << seqs[r->seq_num].genomic_pos + r->end + 1 << "\t"
          << seqs[r->seq_num].name;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
          m != r->motif_scores.end(); ++m)
@@ -557,6 +690,23 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
   }
 
   strm << endl;
+}
+
+void cb::output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs) {
+  strm << "# Sequence name\tScore\tSequence number\tRank\n";
+
+  uint rank_position = 1;
+
+  for (vector<result>::const_iterator r = results.begin(); r != results.end();
+       ++r) {
+    strm << seqs[r->seq_num].name << "\t"
+         << r->score << "\t"
+         << r->seq_num << "\t"
+         << rank_position << "\n";
+    rank_position++;
+  }
+
+  strm << std::flush;
 }
 
 // I'll probably move this to a library
@@ -584,7 +734,7 @@ int main(int argc, char **argv) {
   string seq_name;
   bool by_sequence = args::out_format == args::BY_SEQUENCE ||
                      args::out_format == args::BY_SEQUENCE_CONCISE ||
-                     args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE;
+                     args::out_format == args::BED;
   cout.setf(ios::left, ios::adjustfield);
   cout.precision(3); // 3 sig figs
 
@@ -597,7 +747,12 @@ int main(int argc, char **argv) {
     } // the one-liner version of this trick confuses my compiler
     istringstream is(seq_name);
     is >> seq_name; // get first word (?)
-    seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+
+    if (args::genomic_coordinates) {
+        seqs.push_back(cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
+    } else {
+        seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+    }
 
     if (args::verbose) {
       cout << std::flush;
@@ -614,8 +769,8 @@ int main(int argc, char **argv) {
         cb::output_by_seq(cout, seqs.back());
       } else if (args::out_format == args::BY_SEQUENCE_CONCISE) {
         cb::output_by_seq_concise(cout, seqs.back());
-      } else if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
-        cb::output_by_seq_concise_one_line(cout, seqs.back());
+      } else if (args::out_format == args::BED) {
+        cb::output_by_seq_bed(cout, seqs.back());
       }
 
       cb::results.clear();
@@ -624,24 +779,31 @@ int main(int argc, char **argv) {
   }
 
   if (args::verbose) {
+    cout << std::flush;
     cerr << endl;
   }
 
   if ((args::out_format == args::BY_SCORE ||
-       args::out_format == args::BY_SCORE_CONCISE) &&
+       args::out_format == args::BY_SCORE_CONCISE ||
+       args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) &&
       !cb::results.empty()) {
     sort(cb::results.begin(), cb::results.end(), byscore<cb::result>());
-    if (args::out_format == args::BY_SCORE)
+
+    if (args::out_format == args::BY_SCORE) {
       cb::output_by_score(cout, seqs);
-    else
+    } else if (args::out_format == args::BY_SCORE_CONCISE) {
       cb::output_by_score_concise(cout, seqs);
+    } else if (args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) {
+      cb::output_sequence_name_sorted_by_score(cout, seqs);
+    }
   }
 
-  if (args::out_format == args::BY_SEQUENCE_CONCISE_ONE_LINE) {
-    cout << '\n';
+  if (args::out_format != args::SEQUENCE_NAME_SORTED_BY_SCORE &&
+      args::out_format != args::BED) {
+      cout.precision(6); // reset to default precision
+      args::print(cout, seqs.size(),
+                  cb::mat_names.size()); // print command line arguments
   }
 
-  cout.precision(6); // reset to default precision
-  args::print(cout, seqs.size(),
-              cb::mat_names.size()); // print command line arguments
+  cout << std::flush;
 }

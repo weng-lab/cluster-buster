@@ -54,12 +54,17 @@ Options:
 -r Range in bp for counting local nucleotide abundances (100)
 -l Mask lowercase letters
 -p Pseudocount (0.375)
+-t Keep top X clusters per sequence (0 (= all))
+-G Use genomic coordinates (extracted from sequence name)
+   0: zero-based start coordinate
+   1: one-based start coordinate
 -f Output format (0)
    0: per sequence (default)
    1: per sequence, concise format
    2: sorted by cluster score
    3: sorted by cluster score, concise format
    4: per sequence, consise format on one line
+   5: BED file
 ```
 
 ```
@@ -156,16 +161,32 @@ default values are designed to give sensible results.
    are a standard way of estimating underlying frequencies from a limited
    number of observations. If your matrices contain probabilities rather
    than counts, you should probably set this parameter to zero.
+-t Keep X top clusters per sequence (default = 0 (= all)).
+   If set to 1 or higher, keep only this amount of best scoring clusters
+   above the cluster threshold for each sequence. If set to 0, keep all
+   clusters above the cluster threshold for each sequence.
+-G Extract genomic coordinates from sequence name and output genomic
+   coordinates instead of relative coordinates.
+   Examples of sequence names from which chromosome names and start
+   positions can be extracted:
+     - chr10:123456
+     - chr10:123456-234567
+     - chr10:123456@@gene_name
+     - chr10:123456-234567@@gene_name
+   Specify if the start coordinate is zero- or one-based:
+     0: zero-based
+     1: one-based
 -f Output format (default = 0).
-   0: Print the clusters in the first sequence sorted by score, then the
-      clusters in the second sequence sorted by score, etc.
-   1: Concise version of 0, omitting details of individual motif matches.
-   2: Sort all clusters by score, regardless of which sequence they come
-      from.
-   3: Concise version of 2, omitting details of individual motif matches.
-   4: Same than 1, but all info on one line.
+     0: Print the clusters in the first sequence sorted by score, then the
+        clusters in the second sequence sorted by score, etc.
+     1: Concise version of 0, omitting details of individual motif matches.
+     2: Sort all clusters by score, regardless of which sequence they come
+        from.
+     3: Concise version of 2, omitting details of individual motif matches.
+     4: Same than 1, but all info on one line.
+     5: BED file with all info.
 
-Example usage: cbust -g20 -l mymotifs myseqs.fa
+Example usage: cbust -g 20 -l mymotifs myseqs.fa
 
 For more information on the Cluster-Buster algorithm, see:
 Cluster-Buster: Finding dense clusters of motifs in DNA sequences
