@@ -12,6 +12,7 @@ double e_gap = 35;
 bool gap_specified = false;
 format out_format = BY_SEQUENCE;
 uint bg_range = 100;
+uint bg_padding = 0;
 bool mask_lower = false;
 double pseudo = 0.375;
 uint keep_top_x_clusters_per_sequence = 0;
@@ -143,6 +144,13 @@ void args::parse(int argc, char **argv) {
       "   region, where it is more surprising, than if it is found in a "
       "GC-rich\n"
       "   region.\n"
+      "-b Background padding in bp (default = " +
+      mcf::tostring(bg_padding) +
+      ").\n"
+      "   Consider first X bp and last X bp of each sequence only for "
+      "counting\n"
+      "   local base abundances but not for scoring to find motif clusters.\n"
+      "   This can be useful when scoring small regions.\n"
       "-l Mask lowercase letters in the sequences (i.e. forbid motifs from\n"
       "   matching them). Lowercase letters are often used to indicate "
       "repetitive\n"
@@ -217,6 +225,7 @@ void args::parse(int argc, char **argv) {
       mcf::tostring(e_gap) + ")\n"
       "-r Range in bp for counting local nucleotide abundances (" +
       mcf::tostring(bg_range) + ")\n"
+      "-b Background padding in bp (" + mcf::tostring(bg_padding) + ")\n"
       "-l Mask lowercase letters\n"
       "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
       "-t Keep top X clusters per sequence (0 (= all))\n"
@@ -236,7 +245,7 @@ void args::parse(int argc, char **argv) {
 
   int c;
 
-  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:lp:t:G:e:")) != -1)
+  while ((c = getopt(argc, argv, "hVvc:m:g:f:r:b:lp:t:G:e:")) != -1)
     switch (c) {
     case 'h':
       cout << doc << endl;
@@ -287,6 +296,9 @@ void args::parse(int argc, char **argv) {
       break;
     case 'r':
       bg_range = atoi(optarg); // what happens if user enters -ve number?
+      break;
+    case 'b':
+      bg_padding = atoi(optarg); // what happens if user enters -ve number?
       break;
     case 'l':
       mask_lower = true;

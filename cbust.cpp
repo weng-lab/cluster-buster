@@ -126,8 +126,8 @@ void init_bg(uint *bg_counts, uint &bg_tot);
 void get_bg(vector<double> &bg);
 void get_hits(uint start, uint end, const vector<double> &bg,
               vector<motif> &hits);
-void forward(const vector<double> &bg, vector<double> &scores,
-             vector<pair<uint, uint> > &clusters);
+void forward(uint start, uint end, const vector<double> &bg,
+             vector<double> &scores, vector<pair<uint, uint> > &clusters);
 uint backward(uint start, uint end, const vector<double> &bg,
               vector<double> &scores, uint ignore);
 void scan_seq(uint seq_num);
@@ -285,11 +285,18 @@ void cb::get_hits(uint start, uint end, const vector<double> &bg,
 
 // apply HMM forward algorithm to seq
 // get all segments with maximal score increases: store them in "segs"
-void cb::forward(const vector<double> &bg, vector<double> &scores,
-                 vector<segment> &segs) {
+void cb::forward(uint start, uint end, const vector<double> &bg,
+                 vector<double> &scores, vector<segment> &segs) {
+  assert(start <= end && end < seq.size());
+  assert(bg.size() == seq.size() && scores.size() == seq.size());
+
   uint lo = 0; // tracks position with lowest score so far
 
-  for (uint n = 0; n != seq.size(); ++n) {
+  for (uint n = 0; n < start; ++n) {
+    scores.push_back(0.0);
+  }
+
+  for (uint n = start; n != end; ++n) {
     double score = gap_score;
     if (n > 0)
       score += scores[n - 1];
@@ -313,21 +320,25 @@ void cb::forward(const vector<double> &bg, vector<double> &scores,
     if (score <= scores[lo])
       lo = n;
     else if (score > scores[n - 1]) {
-      uint start = n - 1;
+      uint seg_start = n - 1;
       for (uint i = segs.size() - 1; i != ~0u; --i) { // Never do ~0 without u
         const segment &c = segs[i];
         if (scores[c.second] >= score)
           break;
-        if (scores[c.first] < scores[start]) {
-          start = c.first;
+        if (scores[c.first] < scores[seg_start]) {
+          seg_start = c.first;
           segs.resize(i);
-          if (start == lo)
+          if (seg_start == lo)
             break;
         }
       }
-      //      cerr << "#   " << start << "   " << n << endl;
-      segs.push_back(make_pair(start, n));
+      //      cerr << "#   " << seg_start << "   " << n << endl;
+      segs.push_back(make_pair(seg_start, n));
     }
+  }
+
+  for (uint n = end; n < seq.size(); ++n) {
+    scores.push_back(0.0);
   }
 }
 
@@ -380,16 +391,23 @@ void cb::scan_seq(uint seq_num) {
   vector<segment> segs;
   vector<s_segment> s_segs;
 
+  if (args::bg_padding * 2 + 1 > seq.size()) {
+    mcf::die("Sequence should be at least "
+        + to_string(args::bg_padding * 2 + 1) + " bp long.");
+  }
+
   for (uint i = 0; i < mats.size(); ++i)
     reverse_matrix(mats[i]);
-  forward(bg, scores, segs);
+
+  forward(args::bg_padding, seq.size() - args::bg_padding, bg, scores, segs);
+
   for (uint i = 0; i < mats.size(); ++i)
     reverse_matrix(mats[i]);
 
   for (vector<segment>::iterator s = segs.begin(); s != segs.end(); ++s) {
     //    cerr << s->first << "  " << s->second << endl;
     uint start =
-        s->first + 2 > max_motif_width ? s->first + 2 - max_motif_width : 0;
+        s->first + 2 > args::bg_padding + max_motif_width ? s->first + 2 - max_motif_width : args::bg_padding;
     start = backward(start, s->second, bg, scores, mat_names.size());
     if (scores[start] > args::score_thresh)
       s_segs.push_back(s_segment(start, s->second, scores[start]));
