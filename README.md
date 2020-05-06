@@ -188,7 +188,6 @@ default values are designed to give sensible results.
      2: Sort all clusters by score, regardless of which sequence they come
         from.
      3: Concise version of 2, omitting details of individual motif matches.
-     4: Same than 1, but all info on one line.
      4: Sort all clusters by score and output sequence name, score, number
         of the sequence in the FASTA file, ranking of the score.
      5: BED file with all info.
