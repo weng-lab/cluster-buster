@@ -15,6 +15,9 @@ enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE, SEQU
 extern format out_format;
 extern uint bg_range;   // Go up to this far either side of current base
                         // when counting local base abundances
+extern uint bg_padding; // Consider first X bp and last X bp of each sequence
+                        // only for counting local base abundances but not for
+                        // scoring to find motif clusters.
 extern bool mask_lower; // mask lowercase letters?
 extern double pseudo;   // Pseudocount to add to all matrix entries
 extern uint keep_top_x_clusters_per_sequence; // Keep top X clusters per sequence
