@@ -143,6 +143,35 @@ void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
 void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs);
 }
 
+// Return "log(1+exp(x))" evaluated carefully for largish "x".
+// This is also called the "softplus": https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
+// transformation, being a smooth approximation to "max(0,x)".
+//
+// See:
+//  - Martin Maechler (2012) "Accurately Computing log(1 − exp(− |a|))": http://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
+//  - Julia LegExpFunctions package: https://github.com/JuliaStats/LogExpFunctions.jl/blob/master/src/basicfuns.jl
+inline double log1pexp(double x) {
+    // Set thresholds x0, x1, x2 such that:
+    //   - log1pexp(x) ≈ exp(x) for x ≤ x0
+    //   - log1pexp(x) ≈ log1p(exp(x)) for x0 < x ≤ x1
+    //   - log1pexp(x) ≈ x + exp(-x) for x1 < x ≤ x2
+    //   - log1pexp(x) ≈ x for x > x2
+    // where the tolerances of the approximations are on the order of eps(typeof(x)).
+    double x0 = -36.7368005696771;
+    double x1 = 18.021826694558577;
+    double x2 = 33.23111882352963;
+
+    if (x < x0) {
+        return exp(x);
+    } else if (x < x1) {
+        return log1p(exp(x));
+    } else if (x < x2) {
+        return x + exp(-x);
+    } else {
+        return x;
+    }
+}
+
 inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
   // Extract chromosome name, start position and extra info from
   // sequence name.
@@ -311,7 +340,7 @@ void cb::forward(uint start, uint end, const vector<double> &bg,
         continue;
       for (uint k = 0; k < m->rows(); ++k)
         s += (*m)[k][seq[n - k]] + bg[n - k]; // matrices are backwards
-      score += log1p(exp(s - score)); // about 15% faster than log(1+...)
+      score += log1pexp(s - score);
     }
 
     //    cerr << n << "  " << score << endl;
@@ -368,7 +397,7 @@ unsigned cb::backward(uint start, uint end, const vector<double> &bg,
         continue;
       for (uint k = 0; k < m->rows(); ++k)
         s += (*m)[k][seq[n + k]] + bg[n + k];
-      score += log1p(exp(s - score)); // about 15% faster than log(1+...)
+      score += log1pexp(s - score);
     }
 
     //    cerr << n << "  " << score << endl;
