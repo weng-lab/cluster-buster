@@ -145,35 +145,40 @@ void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> 
 }
 
 // Return "log(1+exp(x))" evaluated carefully for largish "x".
-// This is also called the "softplus": https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
-// transformation, being a smooth approximation to "max(0,x)".
+// This is also called the "softplus":
+//   https://en.wikipedia.org/wiki/Rectifier_(neural_networks) transformation,
+// being a smooth approximation to "max(0,x)".
 //
 // See:
-//  - Martin Maechler (2012) "Accurately Computing log(1 − exp(− |a|))": http://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
-//  - Julia LegExpFunctions package: https://github.com/JuliaStats/LogExpFunctions.jl/blob/master/src/basicfuns.jl
+//  - Martin Maechler (2012) "Accurately Computing log(1 − exp(− |a|))":
+//      http://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
+//  - Julia LegExpFunctions package:
+//      https://github.com/JuliaStats/LogExpFunctions.jl/blob/master/src/basicfuns.jl
 inline double log1pexp(double x) {
-    // Set thresholds x0, x1, x2 such that:
-    //   - log1pexp(x) ≈ exp(x) for x ≤ x0
-    //   - log1pexp(x) ≈ log1p(exp(x)) for x0 < x ≤ x1
-    //   - log1pexp(x) ≈ x + exp(-x) for x1 < x ≤ x2
-    //   - log1pexp(x) ≈ x for x > x2
-    // where the tolerances of the approximations are on the order of eps(typeof(x)).
-    double x0 = -36.7368005696771;
-    double x1 = 18.021826694558577;
-    double x2 = 33.23111882352963;
+  // Set thresholds x0, x1, x2 such that:
+  //   - log1pexp(x) ≈ exp(x) for x ≤ x0
+  //   - log1pexp(x) ≈ log1p(exp(x)) for x0 < x ≤ x1
+  //   - log1pexp(x) ≈ x + exp(-x) for x1 < x ≤ x2
+  //   - log1pexp(x) ≈ x for x > x2
+  // where the tolerances of the approximations are on the order of
+  // eps(typeof(x)).
+  double x0 = -36.7368005696771;
+  double x1 = 18.021826694558577;
+  double x2 = 33.23111882352963;
 
-    if (x < x0) {
-        return exp(x);
-    } else if (x < x1) {
-        return log1p(exp(x));
-    } else if (x < x2) {
-        return x + exp(-x);
-    } else {
-        return x;
-    }
+  if (x < x0) {
+    return exp(x);
+  } else if (x < x1) {
+    return log1p(exp(x));
+  } else if (x < x2) {
+    return x + exp(-x);
+  } else {
+    return x;
+  }
 }
 
-inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
+inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length,
+                                          bool zero_based) {
   // Extract chromosome name, start position and extra info from
   // sequence name.
   //
@@ -444,8 +449,8 @@ void cb::scan_seq(uint seq_num) {
   vector<s_segment> s_segs;
 
   if (args::bg_padding * 2 + 1 > seq.size()) {
-    mcf::die("Sequence should be at least "
-        + to_string(args::bg_padding * 2 + 1) + " bp long.");
+    mcf::die("Sequence should be at least " +
+             to_string(args::bg_padding * 2 + 1) + " bp long.");
   }
 
   for (uint i = 0; i < mats.size(); ++i) {
@@ -460,8 +465,9 @@ void cb::scan_seq(uint seq_num) {
 
   for (vector<segment>::iterator s = segs.begin(); s != segs.end(); ++s) {
     //    cerr << s->first << "  " << s->second << endl;
-    uint start =
-        s->first + 2 > args::bg_padding + max_motif_width ? s->first + 2 - max_motif_width : args::bg_padding;
+    uint start = s->first + 2 > args::bg_padding + max_motif_width
+                     ? s->first + 2 - max_motif_width
+                     : args::bg_padding;
     start = backward(start, s->second, bg, scores, mat_names.size());
     if (scores[start] > args::score_thresh) {
       s_segs.push_back(s_segment(start, s->second, scores[start]));
@@ -474,12 +480,12 @@ void cb::scan_seq(uint seq_num) {
   // Remove overlapping segements (returned segments are sorted by position).
   mcf::remove_overlapping_segments(s_segs, s_segs); // overkill
 
-  if (args::keep_top_x_clusters_per_sequence > 0
-        && args::keep_top_x_clusters_per_sequence < s_segs.size()) {
-      // Sort by cluster score again.
-      sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
-      // Keep only the top X clusters per sequence.
-      s_segs.resize(args::keep_top_x_clusters_per_sequence);
+  if (args::keep_top_x_clusters_per_sequence > 0 &&
+      args::keep_top_x_clusters_per_sequence < s_segs.size()) {
+    // Sort by cluster score again.
+    sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+    // Keep only the top X clusters per sequence.
+    s_segs.resize(args::keep_top_x_clusters_per_sequence);
   }
 
   for (vector<s_segment>::const_iterator s = s_segs.begin(); s != s_segs.end();
@@ -599,10 +605,7 @@ void cb::get_matrices() {
       cout << "\n";
       }*/
     transform(mats[m][0], mats[m][1], mats[m][0],
-              [&](double const& elem) {
-                  return elem + term;
-              }
-    );
+              [&](double const &elem) { return elem + term; });
   }
 }
 
@@ -708,12 +711,11 @@ void cb::output_by_seq_bed(ostream &strm, const seq_info &seq) {
          << "-\t"
          << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
 
-    for (vector<motif>::const_iterator h = r->hits.begin();
-         h != r->hits.end(); ++h) {
+    for (vector<motif>::const_iterator h = r->hits.begin(); h != r->hits.end();
+         ++h) {
       // Get motif type contribution score.
-      vector<string>::iterator mat_names_iterator = find(mat_names.begin(),
-                                                         mat_names.end(),
-                                                         h->name);
+      vector<string>::iterator mat_names_iterator =
+          find(mat_names.begin(), mat_names.end(), h->name);
       int matrix_name_index = distance(mat_names.begin(), mat_names_iterator);
 
       strm << seq.chrom << "\t"
@@ -843,9 +845,10 @@ int main(int argc, char **argv) {
     is >> seq_name; // get first word (?)
 
     if (args::genomic_coordinates) {
-        seqs.push_back(cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
+      seqs.push_back(
+          cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
     } else {
-        seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+      seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
     }
 
     if (args::verbose) {
@@ -894,9 +897,9 @@ int main(int argc, char **argv) {
 
   if (args::out_format != args::SEQUENCE_NAME_SORTED_BY_SCORE &&
       args::out_format != args::BED) {
-      cout.precision(6); // reset to default precision
-      args::print(cout, seqs.size(),
-                  cb::mat_names.size()); // print command line arguments
+    cout.precision(6); // reset to default precision
+    args::print(cout, seqs.size(),
+                cb::mat_names.size()); // print command line arguments
   }
 
   cout << std::flush;

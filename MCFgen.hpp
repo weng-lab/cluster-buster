@@ -43,7 +43,7 @@ template <class It> bool is_reverse(It start, It end);
 // no guarantee that the answer will be exactly 1
 // the range had better contain floating-point values!
 template <class It> void normalize(It start, It end);
-}
+} // namespace mcf
 
 template <class T> inline std::string mcf::tostring(T x) {
   std::ostringstream temp;

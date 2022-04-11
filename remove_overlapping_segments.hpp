@@ -18,7 +18,7 @@ namespace { // anonymous namespace: accessible from this file only
 template <class T> struct lesspos { // sort criterion for segments
   bool operator()(const T &a, const T &b) const { return a.end < b.start; }
 };
-}
+} // namespace
 
 template <class T>
 void mcf::remove_overlapping_segments(const std::vector<T> &in,

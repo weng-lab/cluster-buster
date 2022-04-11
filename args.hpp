@@ -11,7 +11,14 @@ extern double score_thresh; // Print clusters with scores >= this
 extern double motif_thresh; // Print motifs inside clusters with scores >= this
 extern double e_gap;        // Expected distance between pairs of cis-elements
 extern bool gap_specified;  // Did the user specify a value for e_gap?
-enum format { BY_SEQUENCE, BY_SEQUENCE_CONCISE, BY_SCORE, BY_SCORE_CONCISE, SEQUENCE_NAME_SORTED_BY_SCORE, BED };
+enum format {
+  BY_SEQUENCE,
+  BY_SEQUENCE_CONCISE,
+  BY_SCORE,
+  BY_SCORE_CONCISE,
+  SEQUENCE_NAME_SORTED_BY_SCORE,
+  BED
+};
 extern format out_format;
 extern uint bg_range;   // Go up to this far either side of current base
                         // when counting local base abundances
@@ -28,4 +35,4 @@ extern bool verbose;    // Be verbose or not
 
 void parse(int argc, char **argv);
 void print(ostream &strm, uint seq_num, uint mat_num);
-}
+} // namespace args

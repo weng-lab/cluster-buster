@@ -89,7 +89,7 @@ void count_oligos(
     std::vector<unsigned> &counts,    // place to store counts
     unsigned oli_len,                 // length of oligos to count
     unsigned alphsize);               // size of alphabet
-}
+} // namespace mcf
 
 inline char mcf::number_to_DNA(unsigned b) {
   static const char lookup[] = "acgtn";
