@@ -58,23 +58,27 @@ inline void mcf::die(const std::string &message) {
 
 template <class S, class T> inline S mcf::int_pow(S x, T y) {
   S ans = 1;
-  for (; y > 0; --y)
+  for (; y > 0; --y) {
     ans *= x;
+  }
   return ans;
 }
 
 template <class T>
 inline void mcf::reserve_or_die(std::vector<T> &v, unsigned n) {
   v.reserve(n);
-  if (v.capacity() < n)
+  if (v.capacity() < n) {
     die("Out of memory: couldn't reserve " + tostring(n) +
         " vector elements of size " + tostring(sizeof(T)));
+  }
 }
 
 template <class It> bool mcf::is_reverse(It start, It end) {
-  while (end > start)
-    if (*(start++) != *(--end))
+  while (end > start) {
+    if (*(start++) != *(--end)) {
       return false;
+    }
+  }
 
   return true;
 }
@@ -87,8 +91,9 @@ template <class It> void mcf::normalize(It start, It end) {
   assert(tot != 0); // doesn't like being prefixed by std::
 
   tot = 1 / tot;
-  for (; start < end; ++start)
+  for (; start < end; ++start) {
     *start *= tot;
+  }
 }
 
 /* Functions below here deprecated */
@@ -105,8 +110,9 @@ template <class T> T **new_matrix(unsigned x, unsigned y) {
 
   T *p = (T *)(mat + x);
 
-  for (unsigned i = 0u; i < x; ++i, p += y)
+  for (unsigned i = 0u; i < x; ++i, p += y) {
     mat[i] = p;
+  }
 
   return mat;
 }
@@ -147,8 +153,9 @@ template <class It, class T> It random_choice(It start, It end, T total) {
 
   while (start < end) {
     x += *start;
-    if (x > choice)
+    if (x > choice) {
       break;
+    }
     ++start;
   }
 

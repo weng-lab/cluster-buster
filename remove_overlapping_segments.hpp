@@ -31,8 +31,9 @@ void mcf::remove_overlapping_segments(const std::vector<T> &in,
        ++i) {
     assert(i->start <= i->end);
     typename std::set<T, lesspos<T> >::iterator j = s.lower_bound(*i);
-    if (j == s.end() || lesspos<T>()(*i, *j))
+    if (j == s.end() || lesspos<T>()(*i, *j)) {
       s.insert(j, *i);
+    }
   }
 
   out.assign(s.begin(), s.end());
