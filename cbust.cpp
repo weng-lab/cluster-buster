@@ -565,7 +565,10 @@ void cb::get_matrices() {
       cout << "\n";
       }*/
     transform(mats[m][0], mats[m][1], mats[m][0],
-              bind2nd(plus<double>(), term));
+              [&](double const& elem) {
+                  return elem + term;
+              }
+    );
   }
 }
 
