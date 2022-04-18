@@ -335,7 +335,7 @@ void cb::get_hits(uint start, uint end, const vector<double> &bg,
 void cb::forward(uint start, uint end, const vector<double> &bg,
                  vector<double> &scores, vector<segment> &segs) {
   assert(start <= end && end < seq.size());
-  assert(bg.size() == seq.size() && scores.size() == seq.size());
+  assert(bg.capacity() >= seq.size() && scores.capacity() >= seq.size());
 
   uint lo = 0; // tracks position with lowest score so far
 
@@ -398,7 +398,7 @@ void cb::forward(uint start, uint end, const vector<double> &bg,
 unsigned cb::backward(uint start, uint end, const vector<double> &bg,
                       vector<double> &scores, uint ignore) {
   assert(start <= end && end < seq.size());
-  assert(bg.size() == seq.size() && scores.size() == seq.size());
+  assert(bg.capacity() >= seq.size() && scores.capacity() >= seq.size());
 
   uint hi = end;
   --start; // awful kludge to deal with uint wrapping
