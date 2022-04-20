@@ -16,7 +16,7 @@ enum format {
   BY_SEQUENCE_CONCISE,
   BY_SCORE,
   BY_SCORE_CONCISE,
-  SEQUENCE_NAME_SORTED_BY_SCORE,
+  BY_SEQUENCE_WITH_SCORES_ONLY,
   BED
 };
 extern format out_format;

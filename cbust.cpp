@@ -141,7 +141,7 @@ void output_by_seq_concise(ostream &strm, const seq_info &seq);
 void output_by_seq_bed(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
-void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs);
+void output_by_seq_with_scores_only(ostream &strm, const vector<seq_info> &seqs);
 }
 
 // Return "log(1+exp(x))" evaluated carefully for largish "x".
@@ -491,11 +491,11 @@ void cb::scan_seq(uint seq_num) {
   for (vector<s_segment>::const_iterator s = s_segs.begin(); s != s_segs.end();
        ++s) {
     vector<double> motif_scores; // each motif's score contribution
-    for (uint m = 0; m != mat_names.size(); ++m) {
-      backward(s->start, s->end, bg, scores, m);
-      motif_scores.push_back(s->score - scores[s->start]);
-      // motif_scores.push_back(s->score + log1p(-exp(scores[s->start] -
-      // s->score)));
+    if (args::out_format != args::BY_SEQUENCE_WITH_SCORES_ONLY) {
+      for (uint m = 0; m != mat_names.size(); ++m) {
+        backward(s->start, s->end, bg, scores, m);
+        motif_scores.push_back(s->score - scores[s->start]);
+      }
     }
     vector<motif> hits;
     if (args::out_format == args::BY_SEQUENCE ||
@@ -787,18 +787,13 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
   strm << endl;
 }
 
-void cb::output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs) {
-  strm << "# Sequence name\tScore\tSequence number\tRank\n";
-
-  uint rank_position = 1;
+void cb::output_by_seq_with_scores_only(ostream &strm, const vector<seq_info> &seqs) {
+  strm << "# Sequence name\tScore\n";
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << seqs[r->seq_num].name << "\t"
-         << r->score << "\t"
-         << r->seq_num << "\t"
-         << rank_position << "\n";
-    rank_position++;
+    strm << seqs[r->seq_num].name << '\t'
+         << r->score << '\n';
   }
 
   strm << std::flush;
@@ -881,8 +876,7 @@ int main(int argc, char **argv) {
   }
 
   if ((args::out_format == args::BY_SCORE ||
-       args::out_format == args::BY_SCORE_CONCISE ||
-       args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) &&
+       args::out_format == args::BY_SCORE_CONCISE) &&
       !cb::results.empty()) {
     sort(cb::results.begin(), cb::results.end(), byscore<cb::result>());
 
@@ -890,12 +884,13 @@ int main(int argc, char **argv) {
       cb::output_by_score(cout, seqs);
     } else if (args::out_format == args::BY_SCORE_CONCISE) {
       cb::output_by_score_concise(cout, seqs);
-    } else if (args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) {
-      cb::output_sequence_name_sorted_by_score(cout, seqs);
     }
+  } else if (args::out_format == args::BY_SEQUENCE_WITH_SCORES_ONLY &&
+      !cb::results.empty()) {
+    cb::output_by_seq_with_scores_only(cout, seqs);
   }
 
-  if (args::out_format != args::SEQUENCE_NAME_SORTED_BY_SCORE &&
+  if (args::out_format != args::BY_SEQUENCE_WITH_SCORES_ONLY &&
       args::out_format != args::BED) {
     cout.precision(6); // reset to default precision
     args::print(cout, seqs.size(),
