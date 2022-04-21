@@ -32,8 +32,9 @@ template <class T> inline void reverse_matrix(mcf::matrix<T> &m) {
   const unsigned num_rows = m.rows();
 
   for (unsigned r = 0; r < num_rows / 2;
-       ++r) // integer division: rounds fractions down
+       ++r) { // integer division: rounds fractions down
     std::swap_ranges(m[r], m[r + 1], m[num_rows - r - 1]);
+  }
 }
 
 // DNA-to-number translator that only recognizes uppercase
@@ -140,10 +141,44 @@ void output_by_seq_concise(ostream &strm, const seq_info &seq);
 void output_by_seq_bed(ostream &strm, const seq_info &seq);
 void output_by_score(ostream &strm, const vector<seq_info> &seqs);
 void output_by_score_concise(ostream &strm, const vector<seq_info> &seqs);
-void output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs);
+void output_by_seq_with_scores_only(ostream &strm, const vector<seq_info> &seqs);
 }
 
-inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length, bool zero_based) {
+// Return "log(1+exp(x))" evaluated carefully for largish "x".
+// This is also called the "softplus":
+//   https://en.wikipedia.org/wiki/Rectifier_(neural_networks) transformation,
+// being a smooth approximation to "max(0,x)".
+//
+// See:
+//  - Martin Maechler (2012) "Accurately Computing log(1 − exp(− |a|))":
+//      http://cran.r-project.org/web/packages/Rmpfr/vignettes/log1mexp-note.pdf
+//  - Julia LegExpFunctions package:
+//      https://github.com/JuliaStats/LogExpFunctions.jl/blob/master/src/basicfuns.jl
+inline double log1pexp(double x) {
+  // Set thresholds x0, x1, x2 such that:
+  //   - log1pexp(x) ≈ exp(x) for x ≤ x0
+  //   - log1pexp(x) ≈ log1p(exp(x)) for x0 < x ≤ x1
+  //   - log1pexp(x) ≈ x + exp(-x) for x1 < x ≤ x2
+  //   - log1pexp(x) ≈ x for x > x2
+  // where the tolerances of the approximations are on the order of
+  // eps(typeof(x)).
+  double x0 = -36.7368005696771;
+  double x1 = 18.021826694558577;
+  double x2 = 33.23111882352963;
+
+  if (x < x0) {
+    return exp(x);
+  } else if (x < x1) {
+    return log1p(exp(x));
+  } else if (x < x2) {
+    return x + exp(-x);
+  } else {
+    return x;
+  }
+}
+
+inline cb::seq_info cb::get_chrom_and_pos(string &seq_name, uint length,
+                                          bool zero_based) {
   // Extract chromosome name, start position and extra info from
   // sequence name.
   //
@@ -198,12 +233,15 @@ cb::motif::motif(uint mat_index, uint s, uint e, double sc)
     : name(mat_names[mat_index / 2]), start(s), end(e),
       strand(mat_index % 2 ? '-' : '+'),
       score(sc) { // Some old C++ systems don't think string has push_back():
-  if (strand == '+')
-    for (uint i = s; i <= e; ++i)
+  if (strand == '+') {
+    for (uint i = s; i <= e; ++i) {
       motif_seq += mcf::number_to_DNA(seq[i]);
-  else
-    for (uint i = e; i != s - 1; --i) // deal with uint wrapping
+    }
+  } else {
+    for (uint i = e; i != s - 1; --i) { // deal with uint wrapping
       motif_seq += number_to_revcomp_DNA(seq[i]);
+    }
+  }
 }
 
 cb::result::result(uint sn, uint s, uint e, double sc, const vector<double> &m,
@@ -211,8 +249,9 @@ cb::result::result(uint sn, uint s, uint e, double sc, const vector<double> &m,
     : seq_num(sn), start(s), end(e), score(sc), motif_scores(m), hits(h) {
   // don't need the body of this function for concise_output
   assert(e >= s);
-  for (uint i = s; i <= e; ++i)
+  for (uint i = s; i <= e; ++i) {
     cluster_seq += mcf::number_to_DNA(seq[i]);
+  }
 
   // put predicted cis-elements in uppercase:
   for (vector<motif>::const_iterator h = hits.begin(); h != hits.end(); ++h) {
@@ -220,8 +259,9 @@ cb::result::result(uint sn, uint s, uint e, double sc, const vector<double> &m,
     uint x = h->start - start;
     uint y = h->end - start;
     for (string::iterator i = cluster_seq.begin() + x;
-         i <= cluster_seq.begin() + y; ++i)
+         i <= cluster_seq.begin() + y; ++i) {
       *i = toupper(*i);
+    }
   }
 }
 
@@ -232,9 +272,11 @@ void cb::init_bg(uint *bg_counts, uint &bg_tot) {
   const vector<uint>::const_iterator end =
       seq.size() > bg_range ? seq.begin() + bg_range : seq.end();
 
-  for (vector<uint>::const_iterator n = seq.begin(); n != end; ++n)
-    if (*n < alphsize)
+  for (vector<uint>::const_iterator n = seq.begin(); n != end; ++n) {
+    if (*n < alphsize) {
       ++bg_counts[*n], ++bg_tot;
+    }
+  }
 }
 
 // calculates background prob of each base by counting base freqs locally
@@ -253,15 +295,17 @@ void cb::get_bg(vector<double> &bg) {
   for (vector<uint>::const_iterator n = seq.begin(); n != seq.end(); ++n) {
     uint i;
 
-    if (uint(seq.end() - n) > bg_range && (i = *(n + bg_range)) < alphsize)
+    if (uint(seq.end() - n) > bg_range && (i = *(n + bg_range)) < alphsize) {
       ++bg_counts[i], ++bg_tot;
+    }
 
     bg.push_back(log(double(bg_tot) / bg_counts[*n]));
     //    cerr << mcf::number_to_DNA(*n) << " " << bg_counts[*n] /
     //    double(bg_tot) << endl;
 
-    if (uint(n - seq.begin()) >= bg_range && (i = *(n - bg_range)) < alphsize)
+    if (uint(n - seq.begin()) >= bg_range && (i = *(n - bg_range)) < alphsize) {
       --bg_counts[i], --bg_tot;
+    }
   }
 }
 
@@ -272,13 +316,16 @@ void cb::get_hits(uint start, uint end, const vector<double> &bg,
   for (uint n = start; n <= end; ++n) {
     for (vector<mat>::const_iterator m = raw_mats.begin(); m != raw_mats.end();
          ++m) {
-      if (end - n + 1 < m->rows())
+      if (end - n + 1 < m->rows()) {
         continue;
+      }
       double s = 0;
-      for (uint k = 0; k < m->rows(); ++k)
+      for (uint k = 0; k < m->rows(); ++k) {
         s += (*m)[k][seq[n + k]] + bg[n + k];
-      if (s > args::motif_thresh)
+      }
+      if (s > args::motif_thresh) {
         hits.push_back(motif(m - raw_mats.begin(), n, n + m->rows() - 1, s));
+      }
     }
   }
 }
@@ -288,7 +335,7 @@ void cb::get_hits(uint start, uint end, const vector<double> &bg,
 void cb::forward(uint start, uint end, const vector<double> &bg,
                  vector<double> &scores, vector<segment> &segs) {
   assert(start <= end && end < seq.size());
-  assert(bg.size() == seq.size() && scores.size() == seq.size());
+  assert(bg.capacity() >= seq.size() && scores.capacity() >= seq.size());
 
   uint lo = 0; // tracks position with lowest score so far
 
@@ -298,38 +345,43 @@ void cb::forward(uint start, uint end, const vector<double> &bg,
 
   for (uint n = start; n != end; ++n) {
     double score = gap_score;
-    if (n > 0)
+    if (n > 0) {
       score += scores[n - 1];
+    }
 
     for (vector<mat>::const_iterator m = mats.begin(); m != mats.end(); ++m) {
       double s;
-      if (n >= m->rows())
+      if (n >= m->rows()) {
         s = scores[n - m->rows()];
-      else if (n + 1 == m->rows())
+      } else if (n + 1 == m->rows()) {
         s = 0;
-      else
+      } else {
         continue;
-      for (uint k = 0; k < m->rows(); ++k)
+      }
+      for (uint k = 0; k < m->rows(); ++k) {
         s += (*m)[k][seq[n - k]] + bg[n - k]; // matrices are backwards
-      score += log1p(exp(s - score)); // about 15% faster than log(1+...)
+      }
+      score += log1pexp(s - score);
     }
 
     //    cerr << n << "  " << score << endl;
     scores.push_back(score);
 
-    if (score <= scores[lo])
+    if (score <= scores[lo]) {
       lo = n;
-    else if (score > scores[n - 1]) {
+    } else if (score > scores[n - 1]) {
       uint seg_start = n - 1;
       for (uint i = segs.size() - 1; i != ~0u; --i) { // Never do ~0 without u
         const segment &c = segs[i];
-        if (scores[c.second] >= score)
+        if (scores[c.second] >= score) {
           break;
+        }
         if (scores[c.first] < scores[seg_start]) {
           seg_start = c.first;
           segs.resize(i);
-          if (seg_start == lo)
+          if (seg_start == lo) {
             break;
+          }
         }
       }
       //      cerr << "#   " << seg_start << "   " << n << endl;
@@ -346,35 +398,40 @@ void cb::forward(uint start, uint end, const vector<double> &bg,
 unsigned cb::backward(uint start, uint end, const vector<double> &bg,
                       vector<double> &scores, uint ignore) {
   assert(start <= end && end < seq.size());
-  assert(bg.size() == seq.size() && scores.size() == seq.size());
+  assert(bg.capacity() >= seq.size() && scores.capacity() >= seq.size());
 
   uint hi = end;
   --start; // awful kludge to deal with uint wrapping
 
   for (uint n = end; n != start; --n) {
     double score = gap_score;
-    if (n != end)
+    if (n != end) {
       score += scores[n + 1];
+    }
 
     for (vector<mat>::const_iterator m = mats.begin(); m != mats.end(); ++m) {
-      if (uint(m - mats.begin()) / 2 == ignore)
+      if (uint(m - mats.begin()) / 2 == ignore) {
         continue;
+      }
       double s;
-      if (end - n >= m->rows())
+      if (end - n >= m->rows()) {
         s = scores[n + m->rows()];
-      else if (end - n + 1 == m->rows())
+      } else if (end - n + 1 == m->rows()) {
         s = 0;
-      else
+      } else {
         continue;
-      for (uint k = 0; k < m->rows(); ++k)
+      }
+      for (uint k = 0; k < m->rows(); ++k) {
         s += (*m)[k][seq[n + k]] + bg[n + k];
-      score += log1p(exp(s - score)); // about 15% faster than log(1+...)
+      }
+      score += log1pexp(s - score);
     }
 
     //    cerr << n << "  " << score << endl;
     scores[n] = score;
-    if (score > scores[hi])
+    if (score > scores[hi]) {
       hi = n;
+    }
   }
 
   return hi;
@@ -392,25 +449,29 @@ void cb::scan_seq(uint seq_num) {
   vector<s_segment> s_segs;
 
   if (args::bg_padding * 2 + 1 > seq.size()) {
-    mcf::die("Sequence should be at least "
-        + to_string(args::bg_padding * 2 + 1) + " bp long.");
+    mcf::die("Sequence should be at least " +
+             to_string(args::bg_padding * 2 + 1) + " bp long.");
   }
 
-  for (uint i = 0; i < mats.size(); ++i)
+  for (uint i = 0; i < mats.size(); ++i) {
     reverse_matrix(mats[i]);
+  }
 
   forward(args::bg_padding, seq.size() - args::bg_padding, bg, scores, segs);
 
-  for (uint i = 0; i < mats.size(); ++i)
+  for (uint i = 0; i < mats.size(); ++i) {
     reverse_matrix(mats[i]);
+  }
 
   for (vector<segment>::iterator s = segs.begin(); s != segs.end(); ++s) {
     //    cerr << s->first << "  " << s->second << endl;
-    uint start =
-        s->first + 2 > args::bg_padding + max_motif_width ? s->first + 2 - max_motif_width : args::bg_padding;
+    uint start = s->first + 2 > args::bg_padding + max_motif_width
+                     ? s->first + 2 - max_motif_width
+                     : args::bg_padding;
     start = backward(start, s->second, bg, scores, mat_names.size());
-    if (scores[start] > args::score_thresh)
+    if (scores[start] > args::score_thresh) {
       s_segs.push_back(s_segment(start, s->second, scores[start]));
+    }
   }
 
   // Sort by cluster score.
@@ -419,22 +480,22 @@ void cb::scan_seq(uint seq_num) {
   // Remove overlapping segements (returned segments are sorted by position).
   mcf::remove_overlapping_segments(s_segs, s_segs); // overkill
 
-  if (args::keep_top_x_clusters_per_sequence > 0
-        && args::keep_top_x_clusters_per_sequence < s_segs.size()) {
-      // Sort by cluster score again.
-      sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
-      // Keep only the top X clusters per sequence.
-      s_segs.resize(args::keep_top_x_clusters_per_sequence);
+  if (args::keep_top_x_clusters_per_sequence > 0 &&
+      args::keep_top_x_clusters_per_sequence < s_segs.size()) {
+    // Sort top X cluster per sequence by cluster score again.
+    std::partial_sort(s_segs.begin(), s_segs.begin() + args::keep_top_x_clusters_per_sequence, s_segs.end(), byscore<s_segment>());
+    // Keep only the top X clusters per sequence.
+    s_segs.resize(args::keep_top_x_clusters_per_sequence);
   }
 
   for (vector<s_segment>::const_iterator s = s_segs.begin(); s != s_segs.end();
        ++s) {
     vector<double> motif_scores; // each motif's score contribution
-    for (uint m = 0; m != mat_names.size(); ++m) {
-      backward(s->start, s->end, bg, scores, m);
-      motif_scores.push_back(s->score - scores[s->start]);
-      // motif_scores.push_back(s->score + log1p(-exp(scores[s->start] -
-      // s->score)));
+    if (args::out_format != args::BY_SEQUENCE_WITH_SCORES_ONLY) {
+      for (uint m = 0; m != mat_names.size(); ++m) {
+        backward(s->start, s->end, bg, scores, m);
+        motif_scores.push_back(s->score - scores[s->start]);
+      }
     }
     vector<motif> hits;
     if (args::out_format == args::BY_SEQUENCE ||
@@ -454,13 +515,15 @@ void cb::misc_init() {
 
   max_motif_width = 0;
   for (vector<cb::mat>::const_iterator m = cb::mats.begin();
-       m != cb::mats.end(); ++m)
+       m != cb::mats.end(); ++m) {
     max_motif_width = max(max_motif_width, m->rows());
+  }
 
   max_motif_name_len = 0;
   for (vector<string>::const_iterator i = mat_names.begin();
-       i != mat_names.end(); ++i)
+       i != mat_names.end(); ++i) {
     max_motif_name_len = max(max_motif_name_len, i->size());
+  }
 }
 
 // add a column to a matrix, with all cells = minus_infinity
@@ -480,8 +543,9 @@ void cb::fifth_column(const matrix<float> &m1, matrix<double> &m2) {
 // 5. absorb HMM transition probabilities
 void cb::get_matrices() {
   ifstream file(args::matfile.c_str());
-  if (!file)
+  if (!file) {
     mcf::die("Sorry, couldn't open " + args::matfile);
+  }
 
   const vector<float> pseudos(alphsize, args::pseudo);
   matrix<float> matf;
@@ -494,8 +558,9 @@ void cb::get_matrices() {
   while (get_cbust_pssm(file, matf, title, weight, gap, alphsize)) {
     istringstream is(title);
     is >> title; // get first word (?)
-    if (matf.rows() == 0)
+    if (matf.rows() == 0) {
       mcf::die("Empty matrix not allowed: " + title);
+    }
     mat_names.push_back(title);
 
     mcf::normalize_pssm(matf, pseudos);
@@ -509,16 +574,20 @@ void cb::get_matrices() {
 
     weights.insert(weights.end(), 2, weight);
     tot_weight += weight * 2;
-    if (!args::gap_specified && gap >= 0)
+    if (!args::gap_specified && gap >= 0) {
       args::e_gap = gap;
+    }
   }
 
-  if (!file.eof()) // catches some but not all errors
+  if (!file.eof()) { // catches some but not all errors
     mcf::die("Sorry, couldn't understand the matrix file " + args::matfile);
-  if (raw_mats.size() == 0)
+  }
+  if (raw_mats.size() == 0) {
     mcf::die("No matrices read");
-  if (tot_weight == 0)
+  }
+  if (tot_weight == 0) {
     mcf::die("All matrix weights = 0: not allowed");
+  }
 
   mats = raw_mats;
   double continue_logprob = log(1.0 - args::tau);
@@ -536,16 +605,17 @@ void cb::get_matrices() {
       cout << "\n";
       }*/
     transform(mats[m][0], mats[m][1], mats[m][0],
-              bind2nd(plus<double>(), term));
+              [&](double const &elem) { return elem + term; });
   }
 }
 
 void cb::print_hits(ostream &strm, const seq_info &seq,
                     const vector<motif> &hits) {
-  for (vector<motif>::const_iterator h = hits.begin(); h != hits.end(); ++h)
+  for (vector<motif>::const_iterator h = hits.begin(); h != hits.end(); ++h) {
     strm << h->name << "\t" << seq.genomic_pos + h->start + 1 << "\t"
          << seq.genomic_pos + h->end + 1 << "\t" << h->strand << "\t"
          << h->score << "\t" << h->motif_seq << '\n';
+  }
 }
 
 void cb::output_by_seq(ostream &strm, const seq_info &seq) {
@@ -558,12 +628,14 @@ void cb::output_by_seq(ostream &strm, const seq_info &seq) {
                          << seq.genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
-    for (uint m = 0; m != mat_names.size(); ++m)
+    for (uint m = 0; m != mat_names.size(); ++m) {
       x.push_back(make_pair(r->motif_scores[m], mat_names[m]));
+    }
     sort(x.begin(), x.end(), greater<pair<double, string> >());
     for (vector<pair<double, string> >::const_iterator i = x.begin();
-         i != x.end(); ++i)
+         i != x.end(); ++i) {
       strm << i->second << ": " << i->first << '\n';
+    }
     strm << r->cluster_seq << '\n';
     print_hits(strm, seq, r->hits);
     strm << '\n';
@@ -574,8 +646,9 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
   strm << '>' << seq.name << " (" << seq.length << " bp)\n";
   strm << "# Score\tStart\tEnd";
   for (vector<string>::const_iterator m = mat_names.begin();
-       m != mat_names.end(); ++m)
+       m != mat_names.end(); ++m) {
     strm << "\t" << *m;
+  }
   strm << '\n';
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
@@ -583,8 +656,9 @@ void cb::output_by_seq_concise(ostream &strm, const seq_info &seq) {
     strm << r->score << "\t" << seq.genomic_pos + r->start + 1 << "\t"
          << seq.genomic_pos + r->end + 1;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
-         m != r->motif_scores.end(); ++m)
+         m != r->motif_scores.end(); ++m) {
       strm << "\t" << *m;
+    }
     strm << '\n';
   }
 
@@ -637,12 +711,11 @@ void cb::output_by_seq_bed(ostream &strm, const seq_info &seq) {
          << "-\t"
          << ((seq.extra_info != "") ? seq.extra_info : "-") << "\n";
 
-    for (vector<motif>::const_iterator h = r->hits.begin();
-         h != r->hits.end(); ++h) {
+    for (vector<motif>::const_iterator h = r->hits.begin(); h != r->hits.end();
+         ++h) {
       // Get motif type contribution score.
-      vector<string>::iterator mat_names_iterator = find(mat_names.begin(),
-                                                         mat_names.end(),
-                                                         h->name);
+      vector<string>::iterator mat_names_iterator =
+          find(mat_names.begin(), mat_names.end(), h->name);
       int matrix_name_index = distance(mat_names.begin(), mat_names_iterator);
 
       strm << seq.chrom << "\t"
@@ -676,12 +749,14 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
          << seqs[r->seq_num].genomic_pos + r->end + 1 << '\n'
          << "Score: " << r->score << '\n';
     vector<pair<double, string> > x;
-    for (uint m = 0; m != mat_names.size(); ++m)
+    for (uint m = 0; m != mat_names.size(); ++m) {
       x.push_back(make_pair(r->motif_scores[m], mat_names[m]));
+    }
     sort(x.begin(), x.end(), greater<pair<double, string> >());
     for (vector<pair<double, string> >::const_iterator i = x.begin();
-         i != x.end(); ++i)
+         i != x.end(); ++i) {
       strm << i->second << ": " << i->first << '\n';
+    }
     strm << r->cluster_seq << '\n';
     print_hits(strm, seqs[r->seq_num], r->hits);
     strm << endl;
@@ -691,8 +766,9 @@ void cb::output_by_score(ostream &strm, const vector<seq_info> &seqs) {
 void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
   strm << "# Score\tStart\tEnd\tSequence";
   for (vector<string>::const_iterator m = mat_names.begin();
-       m != mat_names.end(); ++m)
+       m != mat_names.end(); ++m) {
     strm << "\t" << *m;
+  }
   strm << '\n';
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
@@ -702,26 +778,22 @@ void cb::output_by_score_concise(ostream &strm, const vector<seq_info> &seqs) {
          << seqs[r->seq_num].genomic_pos + r->end + 1 << "\t"
          << seqs[r->seq_num].name;
     for (vector<double>::const_iterator m = r->motif_scores.begin();
-         m != r->motif_scores.end(); ++m)
+         m != r->motif_scores.end(); ++m) {
       strm << "\t" << *m;
+    }
     strm << '\n';
   }
 
   strm << endl;
 }
 
-void cb::output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_info> &seqs) {
-  strm << "# Sequence name\tScore\tSequence number\tRank\n";
-
-  uint rank_position = 1;
+void cb::output_by_seq_with_scores_only(ostream &strm, const vector<seq_info> &seqs) {
+  strm << "# Sequence name\tScore\n";
 
   for (vector<result>::const_iterator r = results.begin(); r != results.end();
        ++r) {
-    strm << seqs[r->seq_num].name << "\t"
-         << r->score << "\t"
-         << r->seq_num << "\t"
-         << rank_position << "\n";
-    rank_position++;
+    strm << seqs[r->seq_num].name << '\t'
+         << r->score << '\n';
   }
 
   strm << std::flush;
@@ -731,8 +803,9 @@ void cb::output_sequence_name_sorted_by_score(ostream &strm, const vector<seq_in
 inline std::ifstream &open_or_die(const std::string &filename,
                                   std::ifstream &strm) {
   strm.open(filename.c_str());
-  if (!strm)
+  if (!strm) {
     mcf::die("Sorry, couldn't open " + filename);
+  }
   return strm;
 }
 
@@ -767,9 +840,10 @@ int main(int argc, char **argv) {
     is >> seq_name; // get first word (?)
 
     if (args::genomic_coordinates) {
-        seqs.push_back(cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
+      seqs.push_back(
+          cb::get_chrom_and_pos(seq_name, cb::seq.size(), args::zero_based));
     } else {
-        seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
+      seqs.push_back(cb::seq_info(seq_name, cb::seq.size()));
     }
 
     if (args::verbose) {
@@ -802,8 +876,7 @@ int main(int argc, char **argv) {
   }
 
   if ((args::out_format == args::BY_SCORE ||
-       args::out_format == args::BY_SCORE_CONCISE ||
-       args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) &&
+       args::out_format == args::BY_SCORE_CONCISE) &&
       !cb::results.empty()) {
     sort(cb::results.begin(), cb::results.end(), byscore<cb::result>());
 
@@ -811,16 +884,17 @@ int main(int argc, char **argv) {
       cb::output_by_score(cout, seqs);
     } else if (args::out_format == args::BY_SCORE_CONCISE) {
       cb::output_by_score_concise(cout, seqs);
-    } else if (args::out_format == args::SEQUENCE_NAME_SORTED_BY_SCORE) {
-      cb::output_sequence_name_sorted_by_score(cout, seqs);
     }
+  } else if (args::out_format == args::BY_SEQUENCE_WITH_SCORES_ONLY &&
+      !cb::results.empty()) {
+    cb::output_by_seq_with_scores_only(cout, seqs);
   }
 
-  if (args::out_format != args::SEQUENCE_NAME_SORTED_BY_SCORE &&
+  if (args::out_format != args::BY_SEQUENCE_WITH_SCORES_ONLY &&
       args::out_format != args::BED) {
-      cout.precision(6); // reset to default precision
-      args::print(cout, seqs.size(),
-                  cb::mat_names.size()); // print command line arguments
+    cout.precision(6); // reset to default precision
+    args::print(cout, seqs.size(),
+                cb::mat_names.size()); // print command line arguments
   }
 
   cout << std::flush;

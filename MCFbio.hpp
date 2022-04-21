@@ -89,7 +89,7 @@ void count_oligos(
     std::vector<unsigned> &counts,    // place to store counts
     unsigned oli_len,                 // length of oligos to count
     unsigned alphsize);               // size of alphabet
-}
+} // namespace mcf
 
 inline char mcf::number_to_DNA(unsigned b) {
   static const char lookup[] = "acgtn";
@@ -120,10 +120,11 @@ inline unsigned mcf::DNA_to_number(char c) {
 inline void mcf::log_pssm(matrix<float> &p) {
   for (std::vector<float>::iterator i = p[0]; i < p[p.rows()]; ++i) {
     assert(*i >= 0);
-    if (*i == 0)
+    if (*i == 0) {
       *i = minus_infinity;
-    else
+    } else {
       *i = log(*i);
+    }
   }
 }
 

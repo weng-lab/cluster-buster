@@ -20,7 +20,7 @@ bool genomic_coordinates = false;
 bool zero_based = false;
 double tau = 0;
 bool verbose = false;
-}
+} // namespace args
 
 void args::parse(int argc, char **argv) {
   const string doc =
@@ -197,9 +197,7 @@ void args::parse(int argc, char **argv) {
       "        from.\n"
       "     3: Concise version of 2, omitting details of individual motif "
       "matches.\n"
-      "     4: Sort all clusters by score and output sequence name, score, "
-      "number\n"
-      "        of the sequence in the FASTA file, ranking of the score.\n"
+      "     4: Print sequence name and score for each cluster.\n"
       "     5: BED file with all info.\n"
       "\n"
       "Example usage: cbust -g 20 -l mymotifs myseqs.fa\n"
@@ -218,25 +216,37 @@ void args::parse(int argc, char **argv) {
       "-h Help: print documentation\n"
       "-V Show version\n"
       "-v Verbose\n"
-      "-c Cluster score threshold (" + mcf::tostring(score_thresh) + ")\n"
-      "-m Motif score threshold (" + mcf::tostring(motif_thresh) + ")\n"
+      "-c Cluster score threshold (" +
+      mcf::tostring(score_thresh) +
+      ")\n"
+      "-m Motif score threshold (" +
+      mcf::tostring(motif_thresh) +
+      ")\n"
       "-g Expected gap (bp) between neighboring motifs in a cluster (" +
-      mcf::tostring(e_gap) + ")\n"
+      mcf::tostring(e_gap) +
+      ")\n"
       "-r Range in bp for counting local nucleotide abundances (" +
-      mcf::tostring(bg_range) + ")\n"
-      "-b Background padding in bp (" + mcf::tostring(bg_padding) + ")\n"
+      mcf::tostring(bg_range) +
+      ")\n"
+      "-b Background padding in bp (" +
+      mcf::tostring(bg_padding) +
+      ")\n"
       "-l Mask lowercase letters\n"
-      "-p Pseudocount (" + mcf::tostring(pseudo) + ")\n"
+      "-p Pseudocount (" +
+      mcf::tostring(pseudo) +
+      ")\n"
       "-t Keep top X clusters per sequence (0 (= all))\n"
       "-G Use genomic coordinates (extracted from sequence name)\n"
       "   0: zero-based start coordinate\n"
       "   1: one-based start coordinate\n"
-      "-f Output format (" + mcf::tostring(out_format) + ")\n"
+      "-f Output format (" +
+      mcf::tostring(out_format) +
+      ")\n"
       "   0: per sequence (default)\n"
       "   1: per sequence, concise format\n"
       "   2: sorted by cluster score\n"
       "   3: sorted by cluster score, concise format\n"
-      "   4: sorted by cluster score: seq name, score, seq number, rank\n"
+      "   4: seq name and score per cluster\n"
       "   5: BED file\n"
       //"-e  transition probability to HMM end state (tau) (" +
       //mcf::tostring(tau) + ")\n"
@@ -284,7 +294,7 @@ void args::parse(int argc, char **argv) {
         out_format = BY_SCORE_CONCISE;
         break;
       case 4:
-        out_format = SEQUENCE_NAME_SORTED_BY_SCORE;
+        out_format = BY_SEQUENCE_WITH_SCORES_ONLY;
         break;
       case 5:
         out_format = BED;
@@ -350,13 +360,16 @@ void args::print(ostream &strm, uint seq_num, uint mat_num) {
        << "Pseudocount: " << pseudo << '\n'
        << "Keep top X clusters per sequence: "
        << (keep_top_x_clusters_per_sequence > 0
-           ? mcf::tostring(keep_top_x_clusters_per_sequence) : "0 (= all)") << '\n'
+               ? mcf::tostring(keep_top_x_clusters_per_sequence)
+               : "0 (= all)")
+       << '\n'
        << "Extract genomic coordinates from sequence name: "
        << (genomic_coordinates
-           ? (zero_based) ? "ON (zero-based)\n" : "ON (one-based)\n"
-           : "OFF\n")
+               ? (zero_based) ? "ON (zero-based)\n" : "ON (one-based)\n"
+               : "OFF\n")
        << "Cluster score threshold: " << score_thresh << '\n'
-       << "Motif score threshold: " << motif_thresh << '\n'
+       << "Motif score threshold: " << motif_thresh
+       << '\n'
        //    << "Tau: " << tau << '\n'
        << flush;
 }

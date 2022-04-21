@@ -57,6 +57,6 @@ public:
     return mcf::is_reverse(data.begin(), data.end());
   }
 };
-}
+} // namespace mcf
 
 #endif

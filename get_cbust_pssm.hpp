@@ -12,4 +12,4 @@ std::istream &get_cbust_pssm(
     float &weight,           // = 1 by default if not specified
     float &gap,              // = -1 by default if not specified
     unsigned alphsize = 4);  // perhaps it should guess alphsize from the input
-}
+} // namespace cb
