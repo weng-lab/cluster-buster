@@ -482,8 +482,8 @@ void cb::scan_seq(uint seq_num) {
 
   if (args::keep_top_x_clusters_per_sequence > 0 &&
       args::keep_top_x_clusters_per_sequence < s_segs.size()) {
-    // Sort by cluster score again.
-    sort(s_segs.begin(), s_segs.end(), byscore<s_segment>());
+    // Sort top X cluster per sequence by cluster score again.
+    std::partial_sort(s_segs.begin(), s_segs.begin() + args::keep_top_x_clusters_per_sequence, s_segs.end(), byscore<s_segment>());
     // Keep only the top X clusters per sequence.
     s_segs.resize(args::keep_top_x_clusters_per_sequence);
   }
