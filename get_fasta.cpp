@@ -32,12 +32,14 @@ std::istream &mcf::get_fasta(
   }
 
   // if reached EOF but read something, clear the stream state:
-  if (strm.eof() && (titflag || seq.size() != old_size))
+  if (strm.eof() && (titflag || seq.size() != old_size)) {
     strm.clear();
+  }
 
-  if (strm)
+  if (strm) {
     title = t;
-  else
+  } else {
     seq.resize(old_size);
+  }
   return strm;
 }

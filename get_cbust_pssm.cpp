@@ -33,10 +33,11 @@ std::istream &cb::get_cbust_pssm(
       std::getline(strm, temp);
       std::istringstream is(temp);
       is >> temp;
-      if (temp == "WEIGHT")
+      if (temp == "WEIGHT") {
         is >> w;
-      else if (temp == "GAP")
+      } else if (temp == "GAP") {
         is >> g;
+      }
     } else {
       strm.unget();
       std::vector<float> v;
@@ -45,15 +46,17 @@ std::istream &cb::get_cbust_pssm(
         strm >> d;
         v.push_back(d);
       }
-      if (!strm)
+      if (!strm) {
         return strm; // failed to read alphsize doubles
+      }
       m.push_row(v.begin());
     }
   }
 
   // if reached EOF but read something, clear the stream state:
-  if (strm.eof() && (titflag || m.rows() != 0))
+  if (strm.eof() && (titflag || m.rows() != 0)) {
     strm.clear();
+  }
 
   if (strm) {
     title = t;

@@ -10,8 +10,9 @@ void mcf::normalize_pssm(matrix<float> &pssm,
   assert(pseudos.size() == c);
 
   for (std::vector<float>::iterator k = pssm[0]; k < pssm[r]; k += c) {
-    for (unsigned i = 0; i < c; ++i)
+    for (unsigned i = 0; i < c; ++i) {
       k[i] += pseudos[i];
+    }
     normalize(k, k + c);
   }
 }

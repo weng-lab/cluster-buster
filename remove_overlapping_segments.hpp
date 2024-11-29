@@ -18,7 +18,7 @@ namespace { // anonymous namespace: accessible from this file only
 template <class T> struct lesspos { // sort criterion for segments
   bool operator()(const T &a, const T &b) const { return a.end < b.start; }
 };
-}
+} // namespace
 
 template <class T>
 void mcf::remove_overlapping_segments(const std::vector<T> &in,
@@ -31,8 +31,9 @@ void mcf::remove_overlapping_segments(const std::vector<T> &in,
        ++i) {
     assert(i->start <= i->end);
     typename std::set<T, lesspos<T> >::iterator j = s.lower_bound(*i);
-    if (j == s.end() || lesspos<T>()(*i, *j))
+    if (j == s.end() || lesspos<T>()(*i, *j)) {
       s.insert(j, *i);
+    }
   }
 
   out.assign(s.begin(), s.end());
